@@ -1,0 +1,30 @@
+/* Entire wrapper */
+.layout-wrapper {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Desktop layout: Sidebar + Content using Flexbox */
+.desktop-layout {
+  display: flex;
+  width: 100%;
+  min-height: calc(100vh - 56px); /* navbar height */
+  overflow: hidden;
+}
+
+/* Sidebar fixed exact width */
+.sidebar-container {
+  flex-shrink: 0;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+}
+
+/* Content area fills remaining width */
+.content-container {
+  flex-grow: 1;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: calc(100vh - 56px);
+}

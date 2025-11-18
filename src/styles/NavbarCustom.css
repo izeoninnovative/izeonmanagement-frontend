@@ -1,0 +1,43 @@
+/* Gradient Navbar */
+.custom-navbar {
+    background: linear-gradient(135deg, #1a73e8, #673ab7, #d500f9);
+    background-size: 300% 300%;
+    animation: gradientMove 8s ease infinite;
+    padding: 0.7rem 1rem;
+}
+
+@keyframes gradientMove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* MOBILE USER ICON */
+.mobile-user-icon {
+    cursor: pointer;
+}
+
+/* DROPDOWN PANEL */
+.mobile-dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 40px;
+    width: 160px;
+    background: white;
+    border-radius: 10px;
+    z-index: 10;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Logout button styling */
+.logout-btn {
+    border-radius: 20px;
+    background-color: white !important;
+    color: #4a148c !important;
+    border: none;
+}
