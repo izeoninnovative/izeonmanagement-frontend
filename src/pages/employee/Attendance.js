@@ -18,7 +18,10 @@ function EmployeeAttendance() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  /* ---------------------------- INTERNAL STYLING ---------------------------- */
+  // NEW : Check office WiFi access
+  const [ipAllowed, setIpAllowed] = useState(false);
+
+  /* ---------------------------- INTERNAL STYLES ---------------------------- */
   const styles = `
     .attendance-filters {
       display: flex;
@@ -60,6 +63,16 @@ function EmployeeAttendance() {
     }
   };
 
+  /* ---------------------------- CHECK OFFICE WIFI (IP) ---------------------------- */
+  const checkIpAccess = async () => {
+    try {
+      const res = await API.get("/auth/validate-ip");
+      setIpAllowed(res.data === true);
+    } catch {
+      setIpAllowed(false);
+    }
+  };
+
   /* ---------------------------- FETCH ATTENDANCE ---------------------------- */
   const fetchAttendance = useCallback(async () => {
     if (!user?.id) return;
@@ -86,11 +99,17 @@ function EmployeeAttendance() {
   }, [user?.id, selectedMonth, selectedYear]);
 
   useEffect(() => {
+    checkIpAccess(); // Validate office WiFi
     fetchAttendance();
   }, [fetchAttendance]);
 
   /* ---------------------------- MARK ATTENDANCE ---------------------------- */
   const markAttendance = async (action) => {
+    if (!ipAllowed) {
+      alert("You can mark attendance only using Office WiFi.");
+      return;
+    }
+
     setMarking(true);
 
     const today = new Date().toISOString().split("T")[0];
@@ -123,6 +142,14 @@ function EmployeeAttendance() {
 
   /* ---------------------------- ATTENDANCE BUTTON LOGIC ---------------------------- */
   const renderButtons = () => {
+    if (!ipAllowed) {
+      return (
+        <Alert variant="danger" className="py-1 px-2">
+          You can mark attendance only using Office WiFi.
+        </Alert>
+      );
+    }
+
     const a = todayRecord;
 
     if (marking) return <Spinner size="sm" />;
