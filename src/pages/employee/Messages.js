@@ -1,10 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
-import { Table, Button, Spinner, Alert, Badge, Tabs, Tab, Form, Card } from "react-bootstrap";
+import {
+  Table,
+  Button,
+  Spinner,
+  Alert,
+  Badge,
+  Tabs,
+  Tab,
+  Form,
+  Card,
+} from "react-bootstrap";
 import API from "../../api/api";
 import { useAuth } from "../../context/AuthContext";
 
 function EmployeeMessages() {
   const { user } = useAuth();
+
   const [inbox, setInbox] = useState([]);
   const [sent, setSent] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +29,9 @@ function EmployeeMessages() {
     body: "",
   });
 
-  // ------------------ INTERNAL UI STYLES ------------------
+  // ----------------------------------------------------------
+  // INTERNAL CSS
+  // ----------------------------------------------------------
   const styles = `
       .msg-header {
         background: linear-gradient(135deg, #1a73e8, #673ab7, #d500f9);
@@ -30,46 +43,45 @@ function EmployeeMessages() {
         margin-bottom: 20px;
         text-align: center;
       }
-
       @keyframes gradientMove {
         0% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
       }
-
       .tab-card {
         border-radius: 12px;
         transition: all 0.25s ease;
       }
-
       .tab-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       }
-
       .msg-table td {
         vertical-align: middle;
       }
   `;
 
-  // ------------------ FETCH MESSAGES ------------------
+  // ----------------------------------------------------------
+  // FETCH MESSAGES
+  // ----------------------------------------------------------
   const fetchMessages = useCallback(async () => {
     try {
       const [receivedRes, sentRes] = await Promise.all([
         API.get(`/employee/${user.id}/messages/received`),
-        API.get(`/employee/${user.id}/messages/sent`)
+        API.get(`/employee/${user.id}/messages/sent`),
       ]);
 
-      const sortedInbox = (receivedRes.data || []).sort(
-        (a, b) => new Date(b.sentAt) - new Date(a.sentAt)
+      setInbox(
+        (receivedRes.data || []).sort(
+          (a, b) => new Date(b.sentAt) - new Date(a.sentAt)
+        )
       );
 
-      const sortedSent = (sentRes.data || []).sort(
-        (a, b) => new Date(b.sentAt) - new Date(a.sentAt)
+      setSent(
+        (sentRes.data || []).sort(
+          (a, b) => new Date(b.sentAt) - new Date(a.sentAt)
+        )
       );
-
-      setInbox(sortedInbox);
-      setSent(sortedSent);
     } catch (err) {
       console.error(err);
       setError("Failed to load messages");
@@ -82,37 +94,76 @@ function EmployeeMessages() {
     fetchMessages();
   }, [fetchMessages]);
 
-  // ------------------ SEND MESSAGE ------------------
+  // ----------------------------------------------------------
+  // ALLOWED RECEIVER ROLES
+  // ----------------------------------------------------------
+  const getReceiverRoles = () => {
+    const role = user.subRole || "EMPLOYEE";
+
+    if (role === "TUTOR") return ["ADMIN", "EMPLOYEE", "STUDENT"];
+    if (role === "ADMIN") return ["EMPLOYEE", "TUTOR", "STUDENT"];
+    return ["ADMIN", "EMPLOYEE"];
+  };
+
+  // ----------------------------------------------------------
+  // SEND MESSAGE
+  // ----------------------------------------------------------
   const handleSend = async (e) => {
     e.preventDefault();
 
-    if (!form.receiverRole || !form.subject || !form.body) {
-      alert("Please fill all fields");
+    const { receiverRole, receiverId, subject, body } = form;
+
+    if (!receiverRole || !subject.trim() || !body.trim()) {
+      alert("Please fill all fields.");
       return;
     }
 
+    if (receiverRole !== "ADMIN" && !receiverId.trim()) {
+      alert("Please enter a valid receiver ID.");
+      return;
+    }
+
+    // PAYLOAD FORMAT BASED ON ROLE  
+    let payload = {
+      subject,
+      body,
+    };
+
+    if (receiverRole === "ADMIN") {
+      payload.adminReceiver = { id: "A001" };
+    } else if (receiverRole === "EMPLOYEE") {
+      payload.employeeReceiver = { id: receiverId.toUpperCase() };
+    } else if (receiverRole === "STUDENT") {
+      payload.studentReceiver = { id: receiverId.toUpperCase() };
+    }
+    // Prevent sending message to self
+    if (receiverId.toUpperCase() === user.id.toUpperCase()) {
+      alert("You cannot send a message to yourself.");
+      return;
+    }
+
+
     try {
-      const payload = {
-        receiverRole: form.receiverRole,
-        receiverId: form.receiverRole === "ADMIN" ? "A001" : form.receiverId,
-        subject: form.subject.trim(),
-        body: form.body.trim(),
-      };
-
       await API.post(`/employee/${user.id}/message/send`, payload);
-
       alert("Message sent!");
-      setForm({ receiverRole: "", receiverId: "", subject: "", body: "" });
+
+      setForm({
+        receiverRole: "",
+        receiverId: "",
+        subject: "",
+        body: "",
+      });
+
       setActiveTab("sent");
       fetchMessages();
-
     } catch (err) {
-      console.error("Error sending:", err);
-      alert("Failed to send");
+      alert(err?.response?.data || "Failed to send message");
     }
   };
 
-  // ------------------ MARK AS READ ------------------
+  // ----------------------------------------------------------
+  // MARK MESSAGE READ
+  // ----------------------------------------------------------
   const markAsRead = async (id) => {
     try {
       await API.put(`/employee/messages/${id}/read`);
@@ -122,17 +173,9 @@ function EmployeeMessages() {
     }
   };
 
-  // ------------------ RECEIVER ROLES ------------------
-  const getReceiverRoles = () => {
-    const role = user.subRole || "EMPLOYEE";
-
-    if (role === "TUTOR") return ["ADMIN", "EMPLOYEE", "STUDENT"];
-    if (role === "ADMIN") return ["EMPLOYEE", "TUTOR", "STUDENT"];
-
-    return ["ADMIN", "EMPLOYEE"];
-  };
-
-  // ------------------ LOADING SCREEN ------------------
+  // ----------------------------------------------------------
+  // LOADING
+  // ----------------------------------------------------------
   if (loading)
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ height: "60vh" }}>
@@ -140,21 +183,22 @@ function EmployeeMessages() {
       </div>
     );
 
+  // ----------------------------------------------------------
+  // RENDER UI
+  // ----------------------------------------------------------
   return (
     <div className="p-3">
       <style>{styles}</style>
 
-      {/* HEADER */}
       <div className="msg-header shadow-sm">
         <h3 className="fw-bold mb-0">Messages</h3>
       </div>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      {/* TABS */}
       <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-3">
 
-        {/* ---------------- INBOX ---------------- */}
+        {/* -------------------- INBOX -------------------- */}
         <Tab eventKey="inbox" title="📥 Inbox">
           <Card className="p-3 shadow-sm tab-card">
             <Table bordered hover responsive className="shadow-sm msg-table">
@@ -173,7 +217,7 @@ function EmployeeMessages() {
                 {inbox.length ? (
                   inbox.map((msg) => (
                     <tr key={msg.id}>
-                      <td>{msg.senderName || "Admin"} ({msg.senderRole})</td>
+                      <td>{msg.senderName} ({msg.senderRole})</td>
                       <td>{msg.subject}</td>
                       <td>{msg.body}</td>
                       <td>{new Date(msg.sentAt).toLocaleString()}</td>
@@ -184,11 +228,7 @@ function EmployeeMessages() {
                       </td>
                       <td>
                         {!msg.readStatus && (
-                          <Button
-                            size="sm"
-                            variant="outline-success"
-                            onClick={() => markAsRead(msg.id)}
-                          >
+                          <Button size="sm" variant="outline-success" onClick={() => markAsRead(msg.id)}>
                             Mark Read
                           </Button>
                         )}
@@ -203,7 +243,7 @@ function EmployeeMessages() {
           </Card>
         </Tab>
 
-        {/* ---------------- SENT ---------------- */}
+        {/* -------------------- SENT -------------------- */}
         <Tab eventKey="sent" title="📤 Sent">
           <Card className="p-3 shadow-sm tab-card">
             <Table bordered hover responsive className="shadow-sm msg-table">
@@ -220,7 +260,7 @@ function EmployeeMessages() {
                 {sent.length ? (
                   sent.map((msg) => (
                     <tr key={msg.id}>
-                      <td>{msg.receiverRole} ({msg.receiverId})</td>
+                      <td>{msg.receiverName} ({msg.receiverRole})</td>
                       <td>{msg.subject}</td>
                       <td>{msg.body}</td>
                       <td>{new Date(msg.sentAt).toLocaleString()}</td>
@@ -234,23 +274,24 @@ function EmployeeMessages() {
           </Card>
         </Tab>
 
-        {/* ---------------- SEND ---------------- */}
+        {/* -------------------- SEND MESSAGE -------------------- */}
         <Tab eventKey="send" title="✉️ Send Message">
           <Card className="p-3 shadow-sm bg-light tab-card">
-
             <Form onSubmit={handleSend}>
 
+              {/* ROLE */}
               <Form.Group className="mb-3">
                 <Form.Label>Receiver Role</Form.Label>
                 <Form.Select
                   value={form.receiverRole}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      receiverRole: e.target.value,
-                      receiverId: "",
-                    })
-                  }
+                  onChange={(e) => {
+                    const role = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      receiverRole: role,
+                      receiverId: role === "ADMIN" ? "A001" : "",
+                    }));
+                  }}
                   required
                 >
                   <option value="">Select Role</option>
@@ -260,7 +301,7 @@ function EmployeeMessages() {
                 </Form.Select>
               </Form.Group>
 
-              {/* Receiver ID */}
+              {/* RECEIVER ID (EMPLOYEE/STUDENT) */}
               {form.receiverRole && form.receiverRole !== "ADMIN" && (
                 <Form.Group className="mb-3">
                   <Form.Label>Receiver ID</Form.Label>
@@ -268,14 +309,14 @@ function EmployeeMessages() {
                     placeholder="Enter ID (E102, S102...)"
                     value={form.receiverId}
                     onChange={(e) =>
-                      setForm({ ...form, receiverId: e.target.value })
+                      setForm({ ...form, receiverId: e.target.value.toUpperCase() })
                     }
                     required
                   />
                 </Form.Group>
               )}
 
-              {/* Fixed for Admin */}
+              {/* FIXED ADMIN */}
               {form.receiverRole === "ADMIN" && (
                 <Form.Group className="mb-3">
                   <Form.Label>Receiver ID</Form.Label>
@@ -283,35 +324,32 @@ function EmployeeMessages() {
                 </Form.Group>
               )}
 
+              {/* SUBJECT */}
               <Form.Group className="mb-3">
                 <Form.Label>Subject</Form.Label>
                 <Form.Control
                   value={form.subject}
-                  onChange={(e) =>
-                    setForm({ ...form, subject: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, subject: e.target.value })}
                   required
                 />
               </Form.Group>
 
+              {/* BODY */}
               <Form.Group className="mb-3">
                 <Form.Label>Message</Form.Label>
                 <Form.Control
                   as="textarea"
                   rows={4}
                   value={form.body}
-                  onChange={(e) =>
-                    setForm({ ...form, body: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, body: e.target.value })}
                   required
                 />
               </Form.Group>
 
               <div className="text-end">
-                <Button variant="primary" type="submit">
-                  Send
-                </Button>
+                <Button variant="primary" type="submit">Send</Button>
               </div>
+
             </Form>
           </Card>
         </Tab>

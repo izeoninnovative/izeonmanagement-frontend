@@ -101,6 +101,12 @@ function EmployeeLeaves() {
       return false;
     }
 
+    // ⭐ NEW: Reason Required
+    if (!form.reason.trim()) {
+      setMessage({ type: "warning", text: "✏️ Reason is required for leave application." });
+      return false;
+    }
+
     return true;
   };
 
@@ -243,13 +249,12 @@ function EmployeeLeaves() {
                 <td>{l.reason}</td>
                 <td>
                   <span
-                    className={`badge ${
-                      l.status === "APPROVED"
+                    className={`badge ${l.status === "APPROVED"
                         ? "bg-success"
                         : l.status === "REJECTED"
-                        ? "bg-danger"
-                        : "bg-warning text-dark"
-                    }`}
+                          ? "bg-danger"
+                          : "bg-warning text-dark"
+                      }`}
                   >
                     {l.status}
                   </span>

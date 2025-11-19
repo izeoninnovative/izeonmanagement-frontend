@@ -149,18 +149,29 @@ function Employees() {
   };
 
   // ---------------------- SAVE EMPLOYEE ----------------------
+  // ---------------------- SAVE EMPLOYEE ----------------------
   const handleSaveEmployee = async (data) => {
     const errors = validateEmployee(data);
     setFormErrors(errors);
 
     if (Object.keys(errors).length > 0) return;
 
+    // 🔥 TRIM IMPORTANT FIELDS BEFORE SENDING TO API
+    const finalData = {
+      ...data,
+      id: data.id?.trim(),
+      email: data.email?.trim(),
+      contact: data.contact?.trim(),
+      role: data.role?.trim(),
+
+    };
+
     try {
       if (editingEmployee) {
-        if (!data.password?.trim()) delete data.password;
-        await API.put(`/admin/employee/${editingEmployee.id}`, data);
+        if (!finalData.password?.trim()) delete finalData.password;
+        await API.put(`/admin/employee/${editingEmployee.id}`, finalData);
       } else {
-        await API.post("/admin/employee", data);
+        await API.post("/admin/employee", finalData);
       }
 
       fetchEmployees();
@@ -169,6 +180,7 @@ function Employees() {
       setFormErrors({ submit: "Failed to save employee. Please try again." });
     }
   };
+
 
   // ---------------------- DELETE EMPLOYEE ----------------------
   const handleDelete = async (id) => {

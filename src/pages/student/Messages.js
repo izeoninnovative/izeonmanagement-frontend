@@ -92,24 +92,43 @@ function StudentMessages() {
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
-    if (!form.subject.trim() || !form.body.trim()) {
+    const receiverRole = form.receiverRole;
+    const receiverId = form.receiverId?.trim().toUpperCase();
+    const subject = form.subject.trim();
+    const body = form.body.trim();
+
+    if (!receiverRole || !subject || !body) {
       alert("⚠️ Please fill all fields");
       return;
     }
 
+    // ❌ prevent sending to self
+    if (receiverRole === "STUDENT" && receiverId === user.id.toUpperCase()) {
+      alert("❌ You cannot send a message to yourself.");
+      return;
+    }
+
+    // build payload
+    let payload = { subject, body };
+
+    if (receiverRole === "ADMIN") {
+      payload.adminReceiver = { id: "A001" };
+    }
+    else if (receiverRole === "TUTOR") {
+      payload.employeeReceiver = { id: receiverId };
+    }
+    else if (receiverRole === "STUDENT") {
+      payload.studentReceiver = { id: receiverId };
+    }
+
     try {
-      await API.post(`/student/${user.id}/message/send`, {
-        receiverRole: "ADMIN",
-        receiverId: null,
-        subject: form.subject,
-        body: form.body,
-      });
+      await API.post(`/student/${user.id}/message/send`, payload);
 
       alert("✅ Message sent successfully!");
-      setForm({ subject: "", body: "" });
+      setForm({ receiverRole: "", receiverId: "", subject: "", body: "" });
       setActiveTab("sent");
       fetchAllMessages();
-    } catch {
+    } catch (err) {
       alert("❌ Failed to send message");
     }
   };
@@ -258,11 +277,60 @@ function StudentMessages() {
         <Tab eventKey="send" title="✉️ Send Message">
           <Card className="p-4 shadow-sm msg-card bg-light">
             <Form onSubmit={handleSendMessage}>
+
+              {/* Select Role */}
               <Form.Group className="mb-3">
-                <Form.Label>To</Form.Label>
-                <Form.Control disabled value="Admin" />
+                <Form.Label>Send To</Form.Label>
+                <Form.Select
+                  value={form.receiverRole || ""}
+                  onChange={(e) => {
+                    const role = e.target.value;
+                    setForm({
+                      ...form,
+                      receiverRole: role,
+                      receiverId: role === "ADMIN" ? "A001" : "",
+                    });
+                  }}
+                  required
+                >
+                  <option value="">Select Role</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="TUTOR">Tutor</option>
+                  <option value="STUDENT">Another Student</option>
+                </Form.Select>
               </Form.Group>
 
+              {/* Admin fixed ID */}
+              {form.receiverRole === "ADMIN" && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Receiver ID</Form.Label>
+                  <Form.Control disabled value="A001" />
+                </Form.Group>
+              )}
+
+              {/* Tutor/Student ID input */}
+              {(form.receiverRole === "TUTOR" || form.receiverRole === "STUDENT") && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Receiver ID</Form.Label>
+                  <Form.Control
+                    placeholder={
+                      form.receiverRole === "TUTOR"
+                        ? "Enter Tutor ID (E101, E202...)"
+                        : "Enter Student ID (S103...)"
+                    }
+                    value={form.receiverId}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        receiverId: e.target.value.toUpperCase().trim(),
+                      })
+                    }
+                    required
+                  />
+                </Form.Group>
+              )}
+
+              {/* Subject */}
               <Form.Group className="mb-3">
                 <Form.Label>Subject</Form.Label>
                 <Form.Control
@@ -274,6 +342,7 @@ function StudentMessages() {
                 />
               </Form.Group>
 
+              {/* Body */}
               <Form.Group className="mb-3">
                 <Form.Label>Message</Form.Label>
                 <Form.Control
@@ -295,6 +364,7 @@ function StudentMessages() {
             </Form>
           </Card>
         </Tab>
+
       </Tabs>
     </div>
   );
