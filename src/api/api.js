@@ -4,7 +4,7 @@ import axios from "axios";
 // Base API instance
 const API = axios.create({
     baseURL: "https://webmanagement-backend-production.up.railway.app/api",  // Backend base URL
-    // baseURL: "http://localhost:8080/api", 
+    // baseURL: "http://localhost:8080/api",
 });
 
 // Optional: Add an interceptor for Authorization header if user logged in
