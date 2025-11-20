@@ -48,6 +48,7 @@ import StudentLeaves from "./pages/student/Leaves";
 import StudentFeedback from "./pages/student/Feedback";
 import StudentMessages from "./pages/student/Messages";
 import StudentBatches from "./pages/student/Batches";
+import Holidays from "./pages/admin/Holidays";
 
 /* -------------------- ROUTING LOGIC -------------------- */
 function AppRoutes() {
@@ -83,6 +84,8 @@ function AppRoutes() {
           <Route path="/admin/messages" element={<ProtectedRoute><AdminMessages /></ProtectedRoute>} />
           <Route path="/admin/batches" element={<ProtectedRoute><Batches /></ProtectedRoute>} />
           <Route path="/admin/feedbacks" element={<ProtectedRoute><AdminFeedbacks /></ProtectedRoute>} />
+           <Route path="/admin/holidays" element={<ProtectedRoute><Holidays /></ProtectedRoute>} />
+
           <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
         </Routes>
       </AdminLayout>

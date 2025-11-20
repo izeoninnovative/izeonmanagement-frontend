@@ -13,6 +13,7 @@ import {
   FaClipboardList,
   FaTasks,
   FaLayerGroup,
+  FaCalendar,
 } from "react-icons/fa";
 
 function Sidebar({ role, onSelect }) {
@@ -45,6 +46,7 @@ function Sidebar({ role, onSelect }) {
         { name: "Messages", icon: <FaComments />, path: "/admin/messages" },
         { name: "Batches", icon: <FaChalkboardTeacher />, path: "/admin/batches" },
         { name: "Feedback", icon: <FaComments />, path: "/admin/feedbacks" },
+         { name: "Holidays", icon: <FaCalendar />, path: "/admin/holidays" }
       ],
 
       employee: [
