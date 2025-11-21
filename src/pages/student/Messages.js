@@ -253,7 +253,16 @@ function StudentMessages() {
                 {sent.length ? (
                   sent.map((msg) => (
                     <tr key={msg.id}>
-                      <td>Admin</td>
+                      <td>
+                        {msg.adminReceiver?.id
+                          ? "Admin"
+                          : msg.employeeReceiver?.name || msg.employeeReceiver?.id
+                            ? `Tutor (${msg.employeeReceiver.name || msg.employeeReceiver.id})`
+                            : msg.studentReceiver?.name || msg.studentReceiver?.id
+                              ? `Student (${msg.studentReceiver.name || msg.studentReceiver.id})`
+                              : "Unknown"}
+                      </td>
+
                       <td className="fw-bold">{msg.subject}</td>
                       <td>{msg.body}</td>
                       <td>{new Date(msg.sentAt).toLocaleString()}</td>
