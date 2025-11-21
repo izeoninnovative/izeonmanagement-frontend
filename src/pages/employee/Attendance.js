@@ -1,16 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  Table,
-  Button,
-  Spinner,
-  Badge,
-  Form,
-  Alert,
-  Tabs,
-  Tab,
-  Card,
-  Row,
-  Col,
+  Table, Button, Spinner, Badge, Form, Alert,
+  Tabs, Tab, Card, Row, Col,
 } from "react-bootstrap";
 import API from "../../api/api";
 import { useAuth } from "../../context/AuthContext";
@@ -40,19 +31,28 @@ function EmployeeAttendance() {
   const [fixSubmitting, setFixSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
 
-  /* --------------------- FILTER ATTENDANCE --------------------- */
-  const filterData = useCallback((data, month, year) => {
-    const filtered = (data || []).filter((a) => {
-      if (!a?.date) return false;
-      const d = new Date(a.date);
-      return d.getMonth() + 1 === +month && d.getFullYear() === +year;
-    });
+  /* ------ Normalize backend response → UI format ------ */
+  const normalize = (r) => ({
+    id: r.id,
+    date: r.date,
+    morningCheckIn: r.morningCheckIn,
+    lunchCheckOut: r.lunchCheckOut,
+    lunchCheckIn: r.lunchCheckIn,
+    eveningCheckOut: r.eveningCheckOut,
+    present: r.present,
+    employee: { id: r.employeeId }   // IMPORTANT FIX
+  });
 
-    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  /* Filter attendance */
+  const filterData = useCallback((data, month, year) => {
+    const filtered = (data || [])
+      .filter((a) => a.date && new Date(a.date).getMonth() + 1 === +month && new Date(a.date).getFullYear() === +year)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
     setFilteredAttendance(filtered);
   }, []);
 
-  /* ------------------------ IP CHECK ------------------------ */
+  /* IP check */
   const checkIpAccess = useCallback(async () => {
     try {
       const res = await API.get("/auth/validate-ip");
@@ -62,71 +62,64 @@ function EmployeeAttendance() {
     }
   }, []);
 
-  /* -------------------- FIX REQUESTS -------------------- */
+  /* Load fix requests */
   const loadFixRequests = useCallback(async (empId) => {
     if (!empId) return;
     try {
       const res = await API.get(`/employee/${empId}/attendance/fix`);
       const arr = Array.isArray(res.data) ? res.data : [];
-      arr.sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
-      setFixRequests(arr);
+      setFixRequests(arr.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
     } catch {
       setFixRequests([]);
     }
   }, []);
 
-  /* -------------------- ATTENDANCE LOAD -------------------- */
+  /* Load attendance */
   const fetchAttendance = useCallback(async () => {
     if (!user?.id) return;
 
     setLoading(true);
-    setError(null);
 
     try {
       const res = await API.get(`/employee/${user.id}/attendance`);
-      const data = res.data || [];
-      setAttendance(data);
+      const raw = res.data || [];
 
-      const today = todayISO;
-      const todayEntries = data.filter((a) => a.date === today);
-      setTodayRecord(todayEntries.length ? todayEntries[todayEntries.length - 1] : null);
+      const normalized = raw.map(normalize);
+      setAttendance(normalized);
 
-      filterData(data, selectedMonth, selectedYear);
+      const todayEntry = normalized.find(a => a.date === todayISO) || null;
+      setTodayRecord(todayEntry);
+
+      filterData(normalized, selectedMonth, selectedYear);
+
     } catch {
-      setError("Failed to load attendance records.");
+      setError("Failed to load attendance.");
     } finally {
       setLoading(false);
     }
   }, [user?.id, filterData, selectedMonth, selectedYear, todayISO]);
 
-  /* -------------------- LEAVE BALANCE -------------------- */
-  const loadLeaveBalance = useCallback(async (empId, month, year) => {
+  /* Load leave balance */
+  const loadLeaveBalance = useCallback(async (empId, m, y) => {
     try {
-      const res = await API.get(`/employee/${empId}/leave-balance?month=${month}&year=${year}`);
+      const res = await API.get(`/employee/${empId}/leave-balance?month=${m}&year=${y}`);
       setLeaveBalance(res.data);
-    } catch (err) {
-      console.error("Leave balance load failed", err);
+    } catch {
       setLeaveBalance(null);
     }
   }, []);
 
-  /* ----------------------- LOAD ALL ----------------------- */
   useEffect(() => {
     checkIpAccess();
     fetchAttendance();
     loadFixRequests(user?.id);
     loadLeaveBalance(user?.id, selectedMonth, selectedYear);
   }, [
-    checkIpAccess,
-    fetchAttendance,
-    loadFixRequests,
-    loadLeaveBalance,
-    user?.id,
-    selectedMonth,
-    selectedYear,
+    checkIpAccess, fetchAttendance, loadFixRequests,
+    loadLeaveBalance, user?.id, selectedMonth, selectedYear
   ]);
 
-  /* ---------------------- MARK ATTENDANCE ---------------------- */
+  /* ---------------- Mark Attendance (fixed) ---------------- */
   const markAttendance = async (action) => {
     if (!ipAllowed) return alert("Only office WiFi allowed.");
 
@@ -134,13 +127,11 @@ function EmployeeAttendance() {
 
     const now = new Date().toLocaleTimeString("en-GB");
 
+    // Always send ONLY one attendance field
     let payload = {
       employee: { id: user.id },
-      date: todayISO,
-      present: true,
+      date: todayISO
     };
-
-    if (todayRecord) payload = { ...payload, ...todayRecord };
 
     if (action === "MORNING_IN") payload.morningCheckIn = now;
     if (action === "LUNCH_OUT") payload.lunchCheckOut = now;
@@ -150,68 +141,29 @@ function EmployeeAttendance() {
     try {
       await API.post("/employee/attendance", payload);
       fetchAttendance();
-    } catch {
+    } catch (err) {
+      console.log(err);
       alert("Failed to update attendance.");
     } finally {
       setMarking(false);
     }
   };
-  const handleMonthYearChange = (type, value) => {
-  if (type === "month") {
-    setSelectedMonth(value);
-    filterData(attendance, value, selectedYear);
-    loadLeaveBalance(user?.id, value, selectedYear);
-  } else {
-    setSelectedYear(value);
-    filterData(attendance, selectedMonth, value);
-    loadLeaveBalance(user?.id, selectedMonth, value);
-  }
-};
-const renderButtons = () => {
-  if (!ipAllowed)
-    return (
-      <Alert variant="danger" className="py-1 px-2">
-        Office WiFi required
-      </Alert>
-    );
-
-  const a = todayRecord;
-
-  if (marking) return <Spinner size="sm" />;
-
-  if (!a?.morningCheckIn)
-    return (
-      <Button onClick={() => markAttendance("MORNING_IN")} variant="success">
-        Morning Check-In
-      </Button>
-    );
-
-  if (!a.lunchCheckOut)
-    return (
-      <Button onClick={() => markAttendance("LUNCH_OUT")} variant="warning">
-        Lunch Out
-      </Button>
-    );
-
-  if (!a.lunchCheckIn)
-    return (
-      <Button onClick={() => markAttendance("LUNCH_IN")} variant="info">
-        Lunch In
-      </Button>
-    );
-
-  if (!a.eveningCheckOut)
-    return (
-      <Button onClick={() => markAttendance("EVENING_OUT")} variant="danger">
-        Evening Out
-      </Button>
-    );
-
-  return <Badge bg="success">✔ Complete</Badge>;
-};
 
 
-  /* -------------------- FIX REQUEST SUBMIT -------------------- */
+  /* Month/Year Change */
+  const handleMonthYearChange = (t, v) => {
+    if (t === "month") {
+      setSelectedMonth(v);
+      filterData(attendance, v, selectedYear);
+      loadLeaveBalance(user?.id, v, selectedYear);
+    } else {
+      setSelectedYear(v);
+      filterData(attendance, selectedMonth, v);
+      loadLeaveBalance(user?.id, selectedMonth, v);
+    }
+  };
+
+  /* -------------------- FIX REQUEST SUBMIT (RESTORED) -------------------- */
   const submitFixRequest = async (e) => {
     e.preventDefault();
 
@@ -221,6 +173,7 @@ const renderButtons = () => {
     }
 
     setFixSubmitting(true);
+
     try {
       await API.post(`/employee/${user.id}/attendance/fix-request`, fixForm);
       setMessage({ type: "success", text: "Fix request submitted." });
@@ -233,89 +186,65 @@ const renderButtons = () => {
     }
   };
 
-  /* ---------------------- HOURS CALC ---------------------- */
-  const calculateHours = (a) => {
-    if (!a.morningCheckIn || !a.eveningCheckOut) return "—";
-    try {
-      const start = new Date(`1970-01-01T${a.morningCheckIn}`);
-      const end = new Date(`1970-01-01T${a.eveningCheckOut}`);
-      const diff = (end - start) / 3600000 - 1;
-      return diff > 0 ? diff.toFixed(1) + " hrs" : "—";
-    } catch {
-      return "—";
-    }
+
+  /* Render Attendance Buttons */
+  const renderButtons = () => {
+    if (!ipAllowed)
+      return <Alert variant="danger" className="py-1 px-2">Office WiFi required</Alert>;
+
+    const a = todayRecord;
+
+    if (marking) return <Spinner size="sm" />;
+
+    if (!a?.morningCheckIn)
+      return <Button onClick={() => markAttendance("MORNING_IN")} variant="success">Morning Check-In</Button>;
+
+    if (!a.lunchCheckOut)
+      return <Button onClick={() => markAttendance("LUNCH_OUT")} variant="warning">Lunch Out</Button>;
+
+    if (!a.lunchCheckIn)
+      return <Button onClick={() => markAttendance("LUNCH_IN")} variant="info">Lunch In</Button>;
+
+    if (!a.eveningCheckOut)
+      return <Button onClick={() => markAttendance("EVENING_OUT")} variant="danger">Evening Out</Button>;
+
+    return <Badge bg="success">✔ Complete</Badge>;
   };
 
-  /* ---------------------- RENDER LOADING ---------------------- */
+  /* UI Rendering */
   if (loading)
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "70vh" }}>
-        <Spinner animation="border" />
-      </div>
-    );
+    return <div className="d-flex justify-content-center align-items-center" style={{ height: "70vh" }}>
+      <Spinner animation="border" />
+    </div>;
 
-  /* ===============================================================
-       FINAL RESPONSIVE UI (BOOTSTRAP ONLY)
-  ============================================================== */
   return (
     <div className="container-fluid p-2 p-md-3">
+      <h3 className="fw-bold mb-3">Employee Attendance</h3>
 
-      <h3 className="fw-bold mb-3 text-center text-md-start">Employee Attendance</h3>
       {error && <Alert variant="danger">{error}</Alert>}
       {message && <Alert variant={message.type}>{message.text}</Alert>}
 
       <Tabs defaultActiveKey="attendance" className="mb-3">
 
-        {/* ====================== ATTENDANCE TAB ====================== */}
         <Tab eventKey="attendance" title="Attendance">
-
-          {/* Month + Year Dropdowns */}
           <Row className="gy-3 mb-3">
-            <Col xs={12} md="auto">
-              <Form.Select
-                value={selectedMonth}
-                onChange={(e) => handleMonthYearChange("month", e.target.value)}
-              >
-                {[
-                  "January",
-                  "February",
-                  "March",
-                  "April",
-                  "May",
-                  "June",
-                  "July",
-                  "August",
-                  "September",
-                  "October",
-                  "November",
-                  "December",
-                ].map((m, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {m}
-                  </option>
-                ))}
+            <Col md="auto">
+              <Form.Select value={selectedMonth} onChange={(e) => handleMonthYearChange("month", e.target.value)}>
+                {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+                  .map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
               </Form.Select>
             </Col>
 
-            <Col xs={12} md="auto">
-              <Form.Select
-                value={selectedYear}
-                onChange={(e) => handleMonthYearChange("year", e.target.value)}
-              >
+            <Col md="auto">
+              <Form.Select value={selectedYear} onChange={(e) => handleMonthYearChange("year", e.target.value)}>
                 {Array.from({ length: 5 }).map((_, i) => {
                   const y = new Date().getFullYear() - i;
-                  return (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  );
+                  return <option key={y} value={y}>{y}</option>;
                 })}
               </Form.Select>
             </Col>
 
-            <Col xs={12} md="auto">
-              {renderButtons()}
-            </Col>
+            <Col md="auto">{renderButtons()}</Col>
           </Row>
 
           {/* Attendance Table */}
@@ -349,7 +278,7 @@ const renderButtons = () => {
                         <td>{a.lunchCheckOut || "—"}</td>
                         <td>{a.lunchCheckIn || "—"}</td>
                         <td>{a.eveningCheckOut || "—"}</td>
-                        <td>{calculateHours(a)}</td>
+                        <td>—</td>
                         <td>
                           <Badge bg={complete ? "success" : "warning"}>
                             {complete ? "Complete" : "In Progress"}
@@ -359,16 +288,16 @@ const renderButtons = () => {
                     );
                   })
                 ) : (
-                  <tr>
-                    <td colSpan={7} className="text-center text-muted py-3">
-                      No attendance found
-                    </td>
-                  </tr>
+                  <tr><td colSpan={7}>No attendance</td></tr>
                 )}
               </tbody>
+
             </Table>
           </div>
         </Tab>
+
+
+
 
         {/* ====================== CALENDAR TAB ====================== */}
         <Tab eventKey="calendar" title="Calendar View">
@@ -500,8 +429,8 @@ const renderButtons = () => {
                             r.status === "APPROVED"
                               ? "success"
                               : r.status === "REJECTED"
-                              ? "danger"
-                              : "warning"
+                                ? "danger"
+                                : "warning"
                           }
                         >
                           {r.status}
