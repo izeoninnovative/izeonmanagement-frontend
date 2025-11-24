@@ -37,14 +37,19 @@ function Leaves() {
     if (!window.confirm(`Confirm ${status.toLowerCase()}?`)) return;
 
     try {
-      const approved = status === "APPROVED";
-      await API.put(`/admin/leaves/${leaveId}/approve?approved=${approved}`);
+      if (status === "APPROVED") {
+        await API.put(`/admin/leave/${leaveId}/approve`);
+      } else {
+        await API.put(`/admin/leave/${leaveId}/reject`);
+      }
+
       fetchLeaves();
     } catch (err) {
       console.error(err);
       alert("Failed to update leave status.");
     }
   };
+
 
   // ---------------------------------------------------------
   // BADGE COMPONENT
@@ -82,8 +87,19 @@ function Leaves() {
 
     return false;
   };
+  const filteredLeaves = leaves
+    .filter((l) => filterByDate(l) && filterByRole(l))
+    .sort((a, b) => {
+      const dateA = new Date(a.fromDate);
+      const dateB = new Date(b.fromDate);
 
-  const filteredLeaves = leaves.filter((l) => filterByDate(l) && filterByRole(l));
+      if (dateA > dateB) return -1;
+      if (dateA < dateB) return 1;
+
+      // If dates are same → sort by ID descending
+      return b.id - a.id;
+    });
+
 
   const getApplicant = (l) => {
     if (l.employeeId) return { name: l.employeeName, role: "EMPLOYEE" };
