@@ -28,12 +28,14 @@ import AdminMessages from "./pages/admin/Messages";
 import AdminLeaves from "./pages/admin/Leaves";
 import AdminAttendance from "./pages/admin/Attendance";
 import AdminFeedbacks from "./pages/admin/Feedbacks";
+import Reports from "./pages/admin/Reports";
 
 /* -------------------- Employee Pages -------------------- */
 import EmployeeDashboard from "./pages/employee/Dashboard";
 import EmployeeAttendance from "./pages/employee/Attendance";
 import EmployeeLeaves from "./pages/employee/Leaves";
 import EmployeeMessages from "./pages/employee/Messages";
+import MyReports from "./pages/employee/Reports";
 
 /* -------------------- Tutor (Employee Sub-role) -------------------- */
 import TutorBatches from "./pages/employee/tutor/TutorBatches";
@@ -49,6 +51,7 @@ import StudentFeedback from "./pages/student/Feedback";
 import StudentMessages from "./pages/student/Messages";
 import StudentBatches from "./pages/student/Batches";
 import Holidays from "./pages/admin/Holidays";
+
 
 /* -------------------- ROUTING LOGIC -------------------- */
 function AppRoutes() {
@@ -85,6 +88,9 @@ function AppRoutes() {
           <Route path="/admin/batches" element={<ProtectedRoute><Batches /></ProtectedRoute>} />
           <Route path="/admin/feedbacks" element={<ProtectedRoute><AdminFeedbacks /></ProtectedRoute>} />
            <Route path="/admin/holidays" element={<ProtectedRoute><Holidays /></ProtectedRoute>} />
+           <Route path="/admin/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+{/* <Route path="/admin/reports/employee/:empId" element={<ProtectedRoute><EmployeeReports /></ProtectedRoute>} /> */}
+
 
           <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
         </Routes>
@@ -103,6 +109,8 @@ function AppRoutes() {
           <Route path="/employee/attendance" element={<ProtectedRoute><EmployeeAttendance /></ProtectedRoute>} />
           <Route path="/employee/leaves" element={<ProtectedRoute><EmployeeLeaves /></ProtectedRoute>} />
           <Route path="/employee/messages" element={<ProtectedRoute><EmployeeMessages /></ProtectedRoute>} />
+          <Route path="/employee/reports" element={<ProtectedRoute><MyReports /></ProtectedRoute>} />
+
 
           {/* -------- Tutor Only Pages -------- */}
           {isTutor && (

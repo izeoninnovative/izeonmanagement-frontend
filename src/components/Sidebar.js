@@ -14,6 +14,7 @@ import {
   FaTasks,
   FaLayerGroup,
   FaCalendar,
+  FaBook,   // ICON FOR REPORTS
 } from "react-icons/fa";
 
 function Sidebar({ role, onSelect }) {
@@ -46,7 +47,10 @@ function Sidebar({ role, onSelect }) {
         { name: "Messages", icon: <FaComments />, path: "/admin/messages" },
         { name: "Batches", icon: <FaChalkboardTeacher />, path: "/admin/batches" },
         { name: "Feedback", icon: <FaComments />, path: "/admin/feedbacks" },
-         { name: "Holidays", icon: <FaCalendar />, path: "/admin/holidays" }
+        { name: "Holidays", icon: <FaCalendar />, path: "/admin/holidays" },
+
+        // 🔥 ADDED REPORTS MENU
+        { name: "Reports", icon: <FaBook />, path: "/admin/reports" },
       ],
 
       employee: [
@@ -54,6 +58,9 @@ function Sidebar({ role, onSelect }) {
         { name: "Attendance", icon: <FaClipboardList />, path: "/employee/attendance" },
         { name: "Leaves", icon: <FaFileAlt />, path: "/employee/leaves" },
         { name: "Messages", icon: <FaComments />, path: "/employee/messages" },
+
+        // 🔥 EMPLOYEE REPORT SECTION
+        { name: "Reports", icon: <FaBook />, path: "/employee/reports" },
 
         ...(isTutor
           ? [
@@ -88,12 +95,11 @@ function Sidebar({ role, onSelect }) {
   /* ------------------ ON CLICK MENU ------------------ */
   const handleNavigate = (item) => {
     navigate(item.path);
-    if (onSelect) onSelect(); // Auto-close Offcanvas
+    if (onSelect) onSelect(); // For mobile offcanvas
   };
 
   return (
     <>
-      {/* INTERNAL CSS */}
       <style>{`
         .sidebar-wrapper {
           width: 100%;
@@ -101,25 +107,19 @@ function Sidebar({ role, onSelect }) {
           overflow-y: auto;
           padding: 18px;
         }
-
-        /* Hover Effect */
         .sidebar-item:hover {
           background: rgba(0,0,0,0.08) !important;
         }
-
-        /* Gradient Active Item */
         .sidebar-item-active {
-          background: linear-gradient(135deg, #1a73e8, #673ab7, #d500f9) !important;
+          background: linear-gradient(135deg, #1a73e8, #673ab7, #d500f9);
           background-size: 300% 300%;
           animation: gradientMove 8s ease infinite;
           color: white !important;
           border-radius: 10px;
         }
-
         .sidebar-item-active svg {
           color: white !important;
         }
-
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
@@ -127,11 +127,8 @@ function Sidebar({ role, onSelect }) {
         }
       `}</style>
 
-      {/* SIDEBAR UI */}
       <div className="sidebar-wrapper bg-light border-end">
-        <h6 className="text-primary fw-bold text-center mb-3">
-          {getTitle()}
-        </h6>
+        <h6 className="text-primary fw-bold text-center mb-3">{getTitle()}</h6>
 
         <ListGroup variant="flush">
           {menus[role]?.map((item) => {
