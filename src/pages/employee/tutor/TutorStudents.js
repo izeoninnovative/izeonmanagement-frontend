@@ -1,6 +1,12 @@
-// TutorStudents.jsx
+// src/pages/employee/tutor/TutorStudents.jsx
 import React, { useCallback, useEffect, useState } from "react";
-import { Table, Button, Spinner, Form, Modal, Badge, Row, Col } from "react-bootstrap";
+import {
+  Table,
+  Button,
+  Spinner,
+  Form,
+  Modal
+} from "react-bootstrap";
 import API from "../../../api/api";
 import { useAuth } from "../../../context/AuthContext";
 
@@ -10,11 +16,10 @@ function TutorStudents() {
   const [batches, setBatches] = useState([]);
   const [students, setStudents] = useState([]);
   const [attendanceMap, setAttendanceMap] = useState({});
-
   const [selectedBatch, setSelectedBatch] = useState("ALL");
   const [loading, setLoading] = useState(true);
 
-  // MODALS
+  /* ---------------- MODALS ---------------- */
   const [showMsgModal, setShowMsgModal] = useState(false);
   const [msgStudent, setMsgStudent] = useState(null);
   const [msgForm, setMsgForm] = useState({ subject: "", body: "" });
@@ -34,12 +39,201 @@ function TutorStudents() {
 
   const today = new Date().toISOString().split("T")[0];
 
+  /* ---------------- CSS ---------------- */
+  const styles = `
+@import url('https://fonts.googleapis.com/css2?family=Salsa:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+
+* {
+  font-family: 'Instrument Sans', sans-serif !important;
+}
+
+.page-title {
+  font-size: 36px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 25px;
+  font-family: 'Salsa', cursive !important;
+  color: #000;
+}
+
+.blue-header th {
+  background: #136CED !important;
+  color: white !important;
+  font-size: 18px;
+  text-align: center;
+  padding: 14px;
+  border: 1px solid #000 !important;
+  font-family: 'Salsa', cursive !important;
+}
+
+.students-table td {
+  border: 1px solid #000 !important;
+  padding: 12px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.btn-task {
+  background: #E0E0E0;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.btn-message {
+  background: #fff;
+  border: 2px solid #000;
+  padding: 6px 14px;
+  border-radius: 8px;
+  color: #136CED;
+  font-weight: 500;
+}
+
+.btn-attendance {
+  background: #34C759;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  color: white;
+}
+
+/* ==================== MODAL (FIGMA STYLE) ==================== */
+.custom-modal .modal-dialog {
+  max-width: 520px;
+  width: 100%;
+}
+
+.custom-modal .modal-content {
+  border-radius: 18px !important;
+  border: 2px solid #000 !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+}
+
+.custom-header {
+  padding: 14px 22px;
+  border-bottom: 1px solid #e6e6e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.custom-title {
+  font-size: 22px;
+  font-family: 'Salsa', cursive !important;
+  font-weight: 700;
+  color: #136CED;
+}
+
+.custom-close {
+  color: #FF383C;
+  font-size: 26px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.custom-body {
+  padding: 18px 22px;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.custom-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.custom-input,
+.custom-textarea,
+.custom-select {
+  border-radius: 12px !important;
+  border: 1.4px solid #d1d1d1 !important;
+  padding: 10px !important;
+  font-size: 15px !important;
+}
+
+.custom-textarea {
+  min-height: 100px;
+}
+
+.custom-footer {
+  padding: 14px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-cancel-btn {
+  padding: 12px;
+  width: 100%;
+  background: #fff;
+  border: 1.4px solid #d1d1d1;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #136CED;
+}
+
+.modal-submit-btn {
+  padding: 14px;
+  width: 100%;
+  background: #34C759;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 700;
+  color: white;
+  border: none;
+}
+
+/* Attendance Buttons */
+.modal-present-btn {
+  width: 45%;
+  padding: 14px;
+  background: #34C759;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+}
+
+.modal-absent-btn {
+  width: 45%;
+  padding: 14px;
+  background: #FF383C;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+}
+
+/* Mobile fix */
+@media (max-width: 576px) {
+  .custom-modal .modal-dialog {
+    max-width: 94%;
+    height: 86vh;
+  }
+  .custom-modal .modal-content {
+    max-height: 86vh;
+  }
+  .custom-body {
+    max-height: calc(86vh - 260px);
+  }
+}
+`;
+
+  /* ---------------- API CALLS ---------------- */
   const fetchBatches = useCallback(async () => {
     try {
       const res = await API.get(`/employee/${user.id}/batches`);
       setBatches(res.data || []);
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert("Failed to load batches");
     } finally {
       setLoading(false);
@@ -50,16 +244,16 @@ function TutorStudents() {
     setLoading(true);
     try {
       if (selectedBatch === "ALL") {
-        let combined = [];
-        for (const batch of batches) {
-          const res = await API.get(`/employee/${user.id}/batch/${batch.id}/students`);
-          const mapped = res.data.map((s) => ({ ...s, batchId: batch.id, batchName: batch.name }));
-          combined = [...combined, ...mapped];
+        let all = [];
+        for (const b of batches) {
+          const res = await API.get(`/employee/${user.id}/batch/${b.id}/students`);
+          const mapped = res.data.map((s) => ({ ...s, batchId: b.id, batchName: b.name }));
+          all = [...all, ...mapped];
         }
-        setStudents(combined);
+        setStudents(all);
       } else {
-        const batch = batches.find((b) => b.id === Number(selectedBatch));
-        const res = await API.get(`/employee/${user.id}/batch/${selectedBatch}/students`);
+        const batch = batches.find((x) => x.id === Number(selectedBatch));
+        const res = await API.get(`/employee/${user.id}/batch/${batch.id}/students`);
         const mapped = res.data.map((s) => ({ ...s, batchId: batch.id, batchName: batch.name }));
         setStudents(mapped);
       }
@@ -70,7 +264,7 @@ function TutorStudents() {
     }
   }, [selectedBatch, batches, user.id]);
 
-  const fetchAttendanceForToday = useCallback(async () => {
+  const fetchAttendance = useCallback(async () => {
     try {
       const res = await API.get(`/employee/${user.id}/attendance/${today}`);
       const map = {};
@@ -79,9 +273,7 @@ function TutorStudents() {
         map[a.studentId][a.batchId] = a.present;
       });
       setAttendanceMap(map);
-    } catch (err) {
-      console.error("Failed to load attendance", err);
-    }
+    } catch {}
   }, [today, user.id]);
 
   useEffect(() => {
@@ -93,123 +285,116 @@ function TutorStudents() {
   }, [batches, selectedBatch, fetchStudents]);
 
   useEffect(() => {
-    if (students.length) fetchAttendanceForToday();
-  }, [students, fetchAttendanceForToday]);
+    if (students.length) fetchAttendance();
+  }, [students, fetchAttendance]);
 
-  // MESSAGE
-  // --------------------------------------------
-// MESSAGE — OPEN MODAL
-// --------------------------------------------
-const openMessageModal = (student) => {
-  if (!student || !student.id) {
-    alert("Invalid student selected");
-    return;
-  }
-
-  setMsgStudent({ ...student }); // ensure full object is saved
-  setMsgForm({ subject: "", body: "" });
-  setShowMsgModal(true);
-};
-
-// --------------------------------------------
-// MESSAGE — SEND
-// --------------------------------------------
-const sendMessage = async (e) => {
-  e.preventDefault();
-
-  const payload = {
-    studentReceiver: { id: msgStudent.id },
-    subject: msgForm.subject.trim(),
-    body: msgForm.body.trim()
+  /* ---------------- MESSAGE ---------------- */
+  const openMessageModal = (student) => {
+    setMsgStudent(student);
+    setMsgForm({ subject: "", body: "" });
+    setShowMsgModal(true);
   };
 
-  try {
-    await API.post(`/employee/${user.id}/message/send`, payload);
+  const sendMessage = async () => {
+    const payload = {
+      studentReceiver: { id: msgStudent.id },
+      subject: msgForm.subject.trim(),
+      body: msgForm.body.trim(),
+    };
 
-    alert("Message sent!");
-    setShowMsgModal(false);
-  } catch (err) {
-    console.error(err);
-    alert("Failed to send message");
-  }
-};
+    try {
+      await API.post(`/employee/${user.id}/message/send`, payload);
+      alert("Message sent!");
+      setShowMsgModal(false);
+    } catch {
+      alert("Failed to send message");
+    }
+  };
 
-  // TASK
+  /* ---------------- TASK ---------------- */
   const openTaskModal = (student) => {
     setTaskStudent(student);
     setTaskBatchId(student.batchId);
-    setTaskForm({ title: "", description: "", type: "ASSIGNMENT", dueDate: "" });
+    setTaskForm({
+      title: "",
+      description: "",
+      type: "ASSIGNMENT",
+      dueDate: "",
+    });
     setShowTaskModal(true);
   };
 
-  const assignTask = async (e) => {
-    e.preventDefault();
+  const assignTask = async () => {
     try {
-      const payload = {
-        title: (taskForm.title || "").trim(),
-        description: (taskForm.description || "").trim(),
-        type: (taskForm.type || "").trim(),
-        dueDate: taskForm.dueDate,
-      };
-
-      await API.post(`/employee/${user.id}/batch/${taskBatchId}/student/${taskStudent.id}/task`, payload);
-      alert("Task Assigned");
+      await API.post(
+        `/employee/${user.id}/batch/${taskBatchId}/student/${taskStudent.id}/task`,
+        taskForm
+      );
+      alert("Task Assigned!");
       setShowTaskModal(false);
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert("Failed to assign task");
     }
   };
 
-  // ATTENDANCE
-  const submitAttendance = async (presentStatus) => {
+  /* ---------------- ATTENDANCE ---------------- */
+  const submitAttendance = async (present) => {
     try {
-      await API.post(`/employee/${user.id}/batch/${attendanceStudent.batchId}/attendance`, {
-        student: { id: attendanceStudent.id },
-        date: today,
-        present: presentStatus,
-      });
+      await API.post(
+        `/employee/${user.id}/batch/${attendanceStudent.batchId}/attendance`,
+        {
+          student: { id: attendanceStudent.id },
+          date: today,
+          present,
+        }
+      );
 
       setAttendanceMap((prev) => ({
         ...prev,
         [attendanceStudent.id]: {
           ...(prev[attendanceStudent.id] || {}),
-          [attendanceStudent.batchId]: presentStatus,
+          [attendanceStudent.batchId]: present,
         },
       }));
 
-      alert(`Marked: ${presentStatus ? "Present" : "Absent"}`);
       setShowAttendanceModal(false);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to mark attendance");
+    } catch {
+      alert("Failed to update attendance");
     }
   };
 
+  /* ---------------- UI ---------------- */
   if (loading)
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "60vh" }}>
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ height: "60vh" }}
+      >
         <Spinner animation="border" />
       </div>
     );
 
   return (
     <div className="p-3">
-      <h3 className="fw-bold mb-3">My Students</h3>
+      <style>{styles}</style>
 
-      <Row className="mb-3">
-        <Col md={4}>
-          <Form.Select value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)}>
-            <option value="ALL">All Batches</option>
-            {batches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </Form.Select>
-        </Col>
-      </Row>
+      <h2 className="page-title">My Students</h2>
 
-      <Table bordered hover responsive className="shadow-sm">
-        <thead className="table-dark">
+      {/* BATCH FILTER */}
+      <Form.Select
+        className="select-batch mb-3"
+        value={selectedBatch}
+        onChange={(e) => setSelectedBatch(e.target.value)}
+      >
+        <option value="ALL">All Batches</option>
+        {batches.map((b) => (
+          <option key={b.id} value={b.id}>{b.name}</option>
+        ))}
+      </Form.Select>
+
+      {/* TABLE */}
+      <Table bordered responsive className="students-table shadow-sm">
+        <thead className="blue-header">
           <tr>
             <th>ID</th>
             <th>Name</th>
@@ -222,137 +407,155 @@ const sendMessage = async (e) => {
           {students.length ? (
             students.map((s) => {
               const status = attendanceMap[s.id]?.[s.batchId];
-              const isLocked = status !== undefined;
-
               return (
                 <tr key={s.id + "-" + s.batchId}>
                   <td>{s.id}</td>
                   <td>{s.name}</td>
-                  <td><Badge bg="info">{s.batchName}</Badge></td>
+                  <td>{s.batchName}</td>
+
                   <td>
-                    <div className="d-flex gap-2">
-                      <Button size="sm" variant="outline-primary" onClick={() => openMessageModal(s)}>Message</Button>
-                      <Button size="sm" variant="success" onClick={() => openTaskModal(s)}>Task</Button>
-                      <Button
-                        size="sm"
-                        disabled={isLocked}
-                        variant={status === true ? "success" : status === false ? "danger" : "warning"}
-                        onClick={() => { setAttendanceStudent(s); setShowAttendanceModal(true); }}
+                    <div className="d-flex gap-2 justify-content-center">
+
+                      <button className="btn-task" onClick={() => openTaskModal(s)}>Task</button>
+
+                      <button className="btn-message" onClick={() => openMessageModal(s)}>Message</button>
+
+                      <button
+                        className="btn-attendance"
+                        disabled={status !== undefined}
+                        onClick={() => {
+                          setAttendanceStudent(s);
+                          setShowAttendanceModal(true);
+                        }}
                       >
-                        {status === true ? "Present" : status === false ? "Absent" : "Mark"}
-                      </Button>
+                        Attendance
+                      </button>
+
                     </div>
                   </td>
                 </tr>
               );
             })
           ) : (
-            <tr><td colSpan={4} className="text-center text-muted">No students found</td></tr>
+            <tr>
+              <td colSpan="4" className="text-center text-muted py-4">
+                No students found.
+              </td>
+            </tr>
           )}
         </tbody>
       </Table>
-{/* MESSAGE MODAL */}
-<Modal show={showMsgModal} onHide={() => setShowMsgModal(false)} centered>
-  <Modal.Header closeButton>
-    <Modal.Title>
-      Message → {msgStudent?.name} ({msgStudent?.id})
-    </Modal.Title>
-  </Modal.Header>
 
-  <Modal.Body>
-    <Form onSubmit={sendMessage}>
-      <Form.Group className="mb-2">
-        <Form.Label>Subject</Form.Label>
-        <Form.Control
-          value={msgForm.subject}
-          onChange={(e) =>
-            setMsgForm({ ...msgForm, subject: e.target.value })
-          }
-          placeholder="Enter subject"
-          required
-        />
-      </Form.Group>
+      {/* ===================== MESSAGE MODAL ===================== */}
+      <Modal show={showMsgModal} onHide={() => setShowMsgModal(false)} centered dialogClassName="custom-modal">
+        <div className="custom-header">
+          <div className="custom-title">Message → {msgStudent?.name}</div>
+          <span className="custom-close" onClick={() => setShowMsgModal(false)}>×</span>
+        </div>
 
-      <Form.Group className="mb-2">
-        <Form.Label>Message</Form.Label>
-        <Form.Control
-          as="textarea"
-          rows={4}
-          value={msgForm.body}
-          onChange={(e) =>
-            setMsgForm({ ...msgForm, body: e.target.value })
-          }
-          placeholder="Write your message..."
-          required
-        />
-      </Form.Group>
-
-      <div className="text-end mt-3">
-        <Button
-          variant="secondary"
-          className="me-2"
-          onClick={() => setShowMsgModal(false)}
-        >
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary">
-          Send
-        </Button>
-      </div>
-    </Form>
-  </Modal.Body>
-</Modal>
-
-      {/* TASK MODAL */}
-      <Modal show={showTaskModal} onHide={() => setShowTaskModal(false)} centered>
-        <Modal.Header closeButton><Modal.Title>Assign Task → {taskStudent?.name}</Modal.Title></Modal.Header>
-        <Modal.Body>
-          <Form onSubmit={assignTask}>
-            <Form.Group className="mb-2">
-              <Form.Label>Title</Form.Label>
-              <Form.Control value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} required />
+        <div className="custom-body">
+          <Form>
+            <Form.Group>
+              <Form.Label className="custom-label">Subject</Form.Label>
+              <Form.Control className="custom-input"
+                value={msgForm.subject}
+                onChange={(e) => setMsgForm({ ...msgForm, subject: e.target.value })}
+              />
             </Form.Group>
 
-            <Form.Group className="mb-2">
-              <Form.Label>Description</Form.Label>
-              <Form.Control as="textarea" rows={3} value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} required />
+            <Form.Group className="mt-3">
+              <Form.Label className="custom-label">Message</Form.Label>
+              <Form.Control as="textarea" className="custom-textarea"
+                value={msgForm.body}
+                onChange={(e) => setMsgForm({ ...msgForm, body: e.target.value })}
+              />
+            </Form.Group>
+          </Form>
+        </div>
+
+        <div className="custom-footer">
+          <Button className="modal-cancel-btn" onClick={() => setShowMsgModal(false)}>Cancel</Button>
+          <Button className="modal-submit-btn" onClick={sendMessage}>Send Message</Button>
+        </div>
+      </Modal>
+
+      {/* ===================== TASK MODAL ===================== */}
+      <Modal show={showTaskModal} onHide={() => setShowTaskModal(false)} centered dialogClassName="custom-modal">
+        <div className="custom-header">
+          <div className="custom-title">Assign Task → {taskStudent?.name}</div>
+          <span className="custom-close" onClick={() => setShowTaskModal(false)}>×</span>
+        </div>
+
+        <div className="custom-body">
+          <Form>
+            <Form.Group>
+              <Form.Label className="custom-label">Task Title</Form.Label>
+              <Form.Control className="custom-input"
+                value={taskForm.title}
+                onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+              />
             </Form.Group>
 
-            <Form.Group className="mb-2">
-              <Form.Label>Type</Form.Label>
-              <Form.Select value={taskForm.type} onChange={(e) => setTaskForm({ ...taskForm, type: e.target.value })}>
+            <Form.Group className="mt-3">
+              <Form.Label className="custom-label">Description</Form.Label>
+              <Form.Control as="textarea" className="custom-textarea"
+                value={taskForm.description}
+                onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+              />
+            </Form.Group>
+
+            <Form.Group className="mt-3">
+              <Form.Label className="custom-label">Type</Form.Label>
+              <Form.Select className="custom-input"
+                value={taskForm.type}
+                onChange={(e) => setTaskForm({ ...taskForm, type: e.target.value })}
+              >
                 <option value="ASSIGNMENT">Assignment</option>
+                <option value="PROJECT">Project</option>
                 <option value="HOMEWORK">Homework</option>
                 <option value="TEST">Test</option>
-                <option value="PROJECT">Project</option>
               </Form.Select>
             </Form.Group>
 
-            <Form.Group>
-              <Form.Label>Due Date</Form.Label>
-              <Form.Control type="date" min={today} value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} required />
+            <Form.Group className="mt-3">
+              <Form.Label className="custom-label">Due Date</Form.Label>
+              <Form.Control type="date" className="custom-input"
+                value={taskForm.dueDate}
+                onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+              />
             </Form.Group>
-
-            <div className="text-end mt-3">
-              <Button variant="secondary" onClick={() => setShowTaskModal(false)}>Cancel</Button>
-              <Button type="submit" variant="success">Assign Task</Button>
-            </div>
           </Form>
-        </Modal.Body>
+        </div>
+
+        <div className="custom-footer">
+          <Button className="modal-cancel-btn" onClick={() => setShowTaskModal(false)}>Cancel</Button>
+          <Button className="modal-submit-btn" onClick={assignTask}>Assign Task</Button>
+        </div>
       </Modal>
 
-      {/* ATTENDANCE MODAL */}
-      <Modal show={showAttendanceModal} onHide={() => setShowAttendanceModal(false)} centered>
-        <Modal.Header closeButton><Modal.Title>Mark Attendance → {attendanceStudent?.name}</Modal.Title></Modal.Header>
-        <Modal.Body className="text-center">
+      {/* ===================== ATTENDANCE MODAL ===================== */}
+      <Modal show={showAttendanceModal} onHide={() => setShowAttendanceModal(false)} centered dialogClassName="custom-modal">
+        <div className="custom-header">
+          <div className="custom-title">Mark Attendance → {attendanceStudent?.name}</div>
+          <span className="custom-close" onClick={() => setShowAttendanceModal(false)}>×</span>
+        </div>
+
+        <div className="custom-body text-center">
           <p className="fw-bold">Date: {today}</p>
-          <p>Select status:</p>
-          <div className="d-flex justify-content-around mt-3">
-            <Button variant="success" onClick={() => submitAttendance(true)}>✔ Present</Button>
-            <Button variant="danger" onClick={() => submitAttendance(false)}>✘ Absent</Button>
+
+          <div className="d-flex justify-content-around mt-4">
+            <button className="modal-present-btn" onClick={() => submitAttendance(true)}>✔ Present</button>
+            <button className="modal-absent-btn" onClick={() => submitAttendance(false)}>✘ Absent</button>
           </div>
-        </Modal.Body>
+        </div>
+
+        <div className="custom-footer">
+          <Button className="modal-cancel-btn" onClick={() => setShowAttendanceModal(false)}>
+            Close
+          </Button>
+        </div>
       </Modal>
+
     </div>
   );
 }

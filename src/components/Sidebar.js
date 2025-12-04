@@ -1,30 +1,34 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { ListGroup } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
+// Logo
+import IzeonLogo from "../images/izeon-logo.svg";
+
+// Icons
 import {
   FaUserTie,
   FaUsers,
-  FaChalkboardTeacher,
   FaHome,
   FaFileAlt,
   FaComments,
   FaClipboardList,
-  FaTasks,
   FaLayerGroup,
   FaCalendar,
-  FaBook,   // ICON FOR REPORTS
+  FaBook,
+  FaUser,
+  FaSignOutAlt,
+  FaTasks,
 } from "react-icons/fa";
 
 function Sidebar({ role, onSelect }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const [isTutor, setIsTutor] = useState(false);
 
-  /* ------------------ TUTOR CHECK ------------------ */
+  /* ------------------ TUTOR ROLE CHECK ------------------ */
   useEffect(() => {
     const lower = (v) => v?.toLowerCase?.() || "";
     setIsTutor(
@@ -35,22 +39,21 @@ function Sidebar({ role, onSelect }) {
     );
   }, [role, user]);
 
-  /* ------------------ MENUS ------------------ */
-  const menus = useMemo(
-    () => ({
+  /* ------------------ MENU ITEMS ------------------ */
+  const menus = useMemo(() => {
+    const baseMenus = {
       admin: [
         { name: "Dashboard", icon: <FaHome />, path: "/admin/dashboard" },
         { name: "Employees", icon: <FaUserTie />, path: "/admin/employees" },
         { name: "Students", icon: <FaUsers />, path: "/admin/students" },
         { name: "Attendance", icon: <FaClipboardList />, path: "/admin/attendance" },
-        { name: "Leaves", icon: <FaFileAlt />, path: "/admin/leaves" },
+        { name: "Leave", icon: <FaFileAlt />, path: "/admin/leaves" },
         { name: "Messages", icon: <FaComments />, path: "/admin/messages" },
-        { name: "Batches", icon: <FaChalkboardTeacher />, path: "/admin/batches" },
-        { name: "Feedback", icon: <FaComments />, path: "/admin/feedbacks" },
-        { name: "Holidays", icon: <FaCalendar />, path: "/admin/holidays" },
-
-        // 🔥 ADDED REPORTS MENU
         { name: "Reports", icon: <FaBook />, path: "/admin/reports" },
+        { name: "Batches", icon: <FaLayerGroup />, path: "/admin/batches" },
+        { name: "Holidays", icon: <FaCalendar />, path: "/admin/holidays" },
+        { name: "Feedback", icon: <FaComments />, path: "/admin/feedbacks" },
+        { name: "Notifications", icon: <FaCalendar />, path: "/admin/notifications" },
       ],
 
       employee: [
@@ -58,8 +61,6 @@ function Sidebar({ role, onSelect }) {
         { name: "Attendance", icon: <FaClipboardList />, path: "/employee/attendance" },
         { name: "Leaves", icon: <FaFileAlt />, path: "/employee/leaves" },
         { name: "Messages", icon: <FaComments />, path: "/employee/messages" },
-
-        // 🔥 EMPLOYEE REPORT SECTION
         { name: "Reports", icon: <FaBook />, path: "/employee/reports" },
 
         ...(isTutor
@@ -79,76 +80,161 @@ function Sidebar({ role, onSelect }) {
         { name: "Messages", icon: <FaComments />, path: "/student/messages" },
         { name: "Batches", icon: <FaLayerGroup />, path: "/student/batches" },
         { name: "Tasks", icon: <FaTasks />, path: "/student/tasks" },
+        
       ],
-    }),
-    [isTutor]
-  );
+    };
 
-  /* ------------------ PANEL TITLE ------------------ */
-  const getTitle = () => {
-    if (role === "admin") return "Admin Panel";
-    if (role === "employee") return isTutor ? "Tutor Panel" : "Employee Panel";
-    if (role === "student") return "Student Panel";
-    return "Dashboard";
-  };
+    /* Always added at bottom */
+    const common = [
+      { name: "Profile", icon: <FaUser />, path: "/profile" },
+      { name: "Logout", icon: <FaSignOutAlt />, action: logout },
+    ];
 
-  /* ------------------ ON CLICK MENU ------------------ */
-  const handleNavigate = (item) => {
+    return {
+      admin: [...baseMenus.admin],
+      employee: [...baseMenus.employee],
+      student: [...baseMenus.student],
+      bottom: common, // <- Bottom section only
+    };
+  }, [isTutor, logout]);
+
+ /* ------------------ STYLES ------------------ */
+const style = `
+  .sidebar-outer {
+    padding: 10px;
+    height: 100%;
+    background: transparent;
+  }
+
+  .sidebar-wrapper {
+    background: white;
+    border-radius: 22px;
+    height: 100%;
+    padding: 20px 18px;
+
+    display: flex;
+    flex-direction: column;
+
+    /* IMPORTANT: prevent entire sidebar from scrolling */
+    overflow: hidden;
+  }
+
+  .sidebar-logo {
+    width: 215px;
+    margin: 0 auto 16px; /* slightly reduced */
+  }
+
+  /* MENU ITEMS SCROLL ONLY */
+  .menu-section {
+    flex-grow: 1;
+    overflow-y: auto;       /* <--- SCROLL HERE */
+    padding-right: 3px;
+  }
+
+  .sidebar-item {
+    height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 12px;
+    margin-bottom: 5px;
+
+    font-size: 16px;
+    font-weight: 500;
+    color: #333 !important;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .sidebar-item svg {
+    font-size: 17px;
+    color: #7a7a7a;
+  }
+
+  .sidebar-item:hover {
+    background: #f4f7ff;
+  }
+
+  .sidebar-item-active {
+    background: #EBF2FF;
+    color: #2D68FE !important;
+  }
+  .sidebar-item-active svg {
+    color: #2D68FE !important;
+  }
+
+  /* FIXED COMMON SECTION AT BOTTOM */
+  .bottom-section {
+    border-top: 1px solid #eee;
+    padding-top: 8px;      /* reduced */
+    margin-top: 6px;       /* reduced */
+  }
+
+  /* Common (Profile / Logout) smaller items */
+  .bottom-section .sidebar-item {
+    padding: 6px 12px;
+    margin-bottom: 4px;
+  }
+`;
+
+
+  /* ------------------ HANDLE CLICK ------------------ */
+  const handleClick = (item) => {
+    if (item.action) return item.action();
     navigate(item.path);
-    if (onSelect) onSelect(); // For mobile offcanvas
+    if (onSelect) onSelect();
   };
 
   return (
     <>
-      <style>{`
-        .sidebar-wrapper {
-          width: 100%;
-          height: 100%;
-          overflow-y: auto;
-          padding: 18px;
-        }
-        .sidebar-item:hover {
-          background: rgba(0,0,0,0.08) !important;
-        }
-        .sidebar-item-active {
-          background: linear-gradient(135deg, #1a73e8, #673ab7, #d500f9);
-          background-size: 300% 300%;
-          animation: gradientMove 8s ease infinite;
-          color: white !important;
-          border-radius: 10px;
-        }
-        .sidebar-item-active svg {
-          color: white !important;
-        }
-        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-      `}</style>
+      <style>{style}</style>
 
-      <div className="sidebar-wrapper bg-light border-end">
-        <h6 className="text-primary fw-bold text-center mb-3">{getTitle()}</h6>
+      {/* OUTER FRAME */}
+      <div className="sidebar-outer">
 
-        <ListGroup variant="flush">
-          {menus[role]?.map((item) => {
-            const active = location.pathname.startsWith(item.path);
+        {/* INNER WHITE CONTAINER */}
+        <div className="sidebar-wrapper">
 
-            return (
-              <ListGroup.Item
-                key={item.name}
-                onClick={() => handleNavigate(item)}
-                className={`d-flex align-items-center gap-2 py-2 px-2 mb-2 rounded sidebar-item 
-                  ${active ? "sidebar-item-active" : ""}
-                `}
-                style={{ cursor: "pointer" }}
-              >
-                {item.icon}
-                <span>{item.name}</span>
-              </ListGroup.Item>
-            );
-          })}
-        </ListGroup>
+          {/* LOGO */}
+          <img src={IzeonLogo} className="sidebar-logo" alt="Izeon Logo" />
+
+          {/* TOP MENU SECTION */}
+          <div className="menu-section">
+            {menus[role]?.map((item, index) => {
+              const active = item.path && location.pathname.startsWith(item.path);
+
+              return (
+                <div
+                  key={index}
+                  onClick={() => handleClick(item)}
+                  className={`sidebar-item ${active ? "sidebar-item-active" : ""}`}
+                >
+                  {item.icon}
+                  <span>{item.name}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* FIXED BOTTOM PROFILE + LOGOUT */}
+          <div className="bottom-section">
+            {menus.bottom.map((item, index) => {
+              const active = item.path && location.pathname.startsWith(item.path);
+
+              return (
+                <div
+                  key={index}
+                  onClick={() => handleClick(item)}
+                  className={`sidebar-item ${active ? "sidebar-item-active" : ""}`}
+                >
+                  {item.icon}
+                  <span>{item.name}</span>
+                </div>
+              );
+            })}
+          </div>
+
+        </div>
       </div>
     </>
   );

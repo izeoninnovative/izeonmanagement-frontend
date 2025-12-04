@@ -1,18 +1,7 @@
+// src/pages/admin/Batches.jsx
 import React, { useEffect, useState, useCallback } from "react";
-import {
-  Table,
-  Button,
-  Modal,
-  Form,
-  Spinner,
-  Alert,
-  Collapse,
-  Card,
-  Row,
-  Col,
-} from "react-bootstrap";
+import { Table, Button, Modal, Form, Spinner, Collapse } from "react-bootstrap";
 import API from "../../api/api";
-import Loader from "../../components/Loader";
 
 function Batches() {
   const [batches, setBatches] = useState([]);
@@ -21,18 +10,14 @@ function Batches() {
   const [tutors, setTutors] = useState([]);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  // UI States
   const [expandedBatch, setExpandedBatch] = useState(null);
 
-  // Modals
   const [showForm, setShowForm] = useState(false);
   const [editingBatch, setEditingBatch] = useState(null);
 
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [selectedBatchForStudent, setSelectedBatchForStudent] = useState(null);
-  const [selectedStudentId, setSelectedStudentId] = useState("");
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -40,54 +25,40 @@ function Batches() {
 
   const [selectedTutorFilter, setSelectedTutorFilter] = useState("ALL");
 
-  // -------------------------------------------------------------
-  // Fetchers
-  // -------------------------------------------------------------
+  const [studentSearch, setStudentSearch] = useState("");
+
+  /* ---------------- FETCHERS ---------------- */
   const fetchBatches = useCallback(async () => {
     try {
       const res = await API.get("/admin/batches");
-      const data = Array.isArray(res.data) ? res.data : [];
+      const data = res.data || [];
       setBatches(data);
-
-      setFilteredBatches(
-        selectedTutorFilter === "ALL"
-          ? data
-          : data.filter((b) => b.tutorId === selectedTutorFilter)
-      );
-    } catch (err) {
-      console.error("fetchBatches:", err);
-      setError("Failed to load batches.");
-    }
-  }, [selectedTutorFilter]);
-
-  const fetchStudents = useCallback(async () => {
-    try {
-      const res = await API.get("/admin/students");
-      setStudents(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("fetchStudents:", err);
+    } catch {
+      console.error("Failed loading batches");
     }
   }, []);
 
+  const fetchStudents = useCallback(async () => {
+    const res = await API.get("/admin/students");
+    setStudents(res.data || []);
+  }, []);
+
   const fetchTutors = useCallback(async () => {
-    try {
-      const res = await API.get("/admin/employees");
-      const all = Array.isArray(res.data) ? res.data : [];
-      setTutors(all.filter((e) => (e.role || "").toUpperCase() === "TUTOR"));
-    } catch (err) {
-      console.error("fetchTutors:", err);
-    }
+    const res = await API.get("/admin/employees");
+    const tutorsOnly = (res.data || []).filter(
+      (t) => (t.role || "").toUpperCase() === "TUTOR"
+    );
+    setTutors(tutorsOnly);
   }, []);
 
   useEffect(() => {
     setLoading(true);
-
-    Promise.all([fetchBatches(), fetchStudents(), fetchTutors()])
-      .catch(() => setError("Failed to load data"))
-      .finally(() => setLoading(false));
+    Promise.all([fetchBatches(), fetchStudents(), fetchTutors()]).finally(() =>
+      setLoading(false)
+    );
   }, [fetchBatches, fetchStudents, fetchTutors]);
 
-
+  /* ---------------- APPLY FILTER ---------------- */
   useEffect(() => {
     setFilteredBatches(
       selectedTutorFilter === "ALL"
@@ -96,36 +67,47 @@ function Batches() {
     );
   }, [selectedTutorFilter, batches]);
 
-  // -------------------------------------------------------------
-  const formatTime = (t) => {
-    if (!t) return "—";
-    return t.substring(0, 5);
-  };
+  /* ---------------- AVAILABLE STUDENTS FOR CURRENT BATCH ---------------- */
+  const availableStudents = students.filter(
+    (s) =>
+      !(selectedBatchForStudent?.students || []).some(
+        (x) => x.id === s.id
+      )
+  );
 
-  // -------------------------------------------------------------
-  // Add/Edit Batch
-  // -------------------------------------------------------------
+  const filteredAvailableStudents = availableStudents.filter((s) => {
+    if (!studentSearch.trim()) return true;
+    const q = studentSearch.toLowerCase();
+    return (
+      s.id?.toString().toLowerCase().includes(q) ||
+      s.name?.toLowerCase().includes(q) ||
+      (s.course || "").toLowerCase().includes(q)
+    );
+  });
+
+  /* ---------------- FORMAT TIME ---------------- */
+  const formatTime = (t) => (t ? t.substring(0, 5) : "—");
+
+  /* ---------------- ADD / EDIT ---------------- */
   const openAddBatch = () => {
-    setEditingBatch({ name: "", startTime: "", endTime: "", tutorId: "" });
+    setEditingBatch({
+      name: "",
+      startTime: "",
+      endTime: "",
+      tutorId: "",
+    });
     setShowForm(true);
   };
 
   const openEditBatch = (b) => {
-    setEditingBatch({
-      id: b.id,
-      name: b.name,
-      startTime: b.startTime,
-      endTime: b.endTime,
-      tutorId: b.tutorId || "",
-      tutorName: b.tutorName || "",
-    });
+    setEditingBatch({ ...b });
     setShowForm(true);
   };
 
   const handleSaveBatch = async (e) => {
     e.preventDefault();
 
-    const payload = {
+    const body = {
       name: editingBatch.name,
       startTime: editingBatch.startTime,
       endTime: editingBatch.endTime,
@@ -134,301 +116,662 @@ function Batches() {
 
     try {
       if (editingBatch.id) {
-        await API.put(`/admin/batch/${editingBatch.id}`, payload);
+        await API.put(`/admin/batch/${editingBatch.id}`, body);
       } else {
-        await API.post("/admin/batch", payload);
+        await API.post(`/admin/batch`, body);
       }
-      await fetchBatches();
       setShowForm(false);
-      setEditingBatch(null);
-    } catch (err) {
-      alert(err?.response?.data?.message || "Failed to save batch.");
+      fetchBatches();
+    } catch {
+      alert("Failed to save batch");
     }
   };
 
-  // -------------------------------------------------------------
-  // Add/Remove Student
-  // -------------------------------------------------------------
-  const addStudentToBatch = async () => {
-    if (!selectedBatchForStudent || !selectedStudentId) return;
-
-    try {
-      await API.post(
-        `/admin/batch/${selectedBatchForStudent.id}/add-student/${selectedStudentId}`
-      );
-      await fetchBatches();
-      setShowStudentModal(false);
-      setSelectedStudentId("");
-    } catch (err) {
-      alert(err?.response?.data?.message || "Failed to add student.");
-    }
-  };
-
-  const removeStudentFromBatch = async (batchId, studentId) => {
-    if (!window.confirm("Remove student from batch?")) return;
-
-    try {
-      await API.delete(`/admin/batch/${batchId}/remove-student/${studentId}`);
-      await fetchBatches();
-    } catch (err) {
-      alert(err?.response?.data?.message || "Failed to remove student.");
-    }
-  };
-
-  // -------------------------------------------------------------
-  // Delete Batch
-  // -------------------------------------------------------------
-  const confirmDeleteBatch = (batch) => {
-    setDeleteTarget(batch);
-    setShowDeleteModal(true);
-  };
-
-  const handleDeleteBatch = async () => {
+  /* ---------------- DELETE ---------------- */
+  const deleteBatch = async () => {
     setDeleteLoading(true);
-
     try {
       await API.delete(`/admin/batch/${deleteTarget.id}`);
       setShowDeleteModal(false);
-      setDeleteTarget(null);
-      await fetchBatches();
-    } catch (err) {
-      setError(
-        err?.response?.data?.message ||
-        "Failed to delete batch. It may have linked tasks or attendance."
-      );
+      fetchBatches();
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  // -------------------------------------------------------------
-  if (loading) return <Loader />;
+  /* ---------------- CSS ---------------- */
+  const CSS = `
+    @import url('https://fonts.googleapis.com/css2?family=Salsa&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+
+    * {
+      font-family: 'Instrument Sans', sans-serif !important;
+    }
+
+    .batch-header {
+      font-family: 'Salsa', cursive !important;
+      font-size: 38px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    /* Filter */
+    .tutor-filter-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 25px;
+    }
+
+    .tutor-label {
+      font-size: 18px;
+      font-weight: 600;
+      font-family: 'Salsa', cursive !important;
+    }
+
+    .tutor-filter {
+      width: 300px;
+      height: 48px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: #f8f8f8;
+      border: 1.8px solid #cfcfcf;
+      font-size: 16px;
+    }
+
+    .btn-add-batch {
+      background: #136CED;
+      font-family: 'Salsa', cursive !important;
+      color: #fff;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 576px) {
+      .btn-add-batch { width: 100%; }
+    }
+
+    /* Table Wrapper */
+    .table-wrapper {
+      overflow-x: auto;
+      border: 2px solid #000;
+      border-radius: 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .batch-table {
+      min-width: 850px;
+    }
+
+    .batch-table thead th {
+      background: #136CED;
+      color: #fff;
+      padding: 12px;
+      font-family: 'Salsa', cursive !important;
+      font-size: 18px;
+      text-align: center;
+      border: 1px solid #000;
+    }
+
+    .batch-table tbody td {
+      padding: 12px;
+      border: 1px solid #000;
+      font-size: 15px;
+      text-align: center;
+    }
+
+    /* ACTION CELL */
+    .figma-actions {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+   
+      border:none !important;
+    }
+
+    .btn-view { background: #5b5b5b; color: #fff; border-radius: 10px; padding: 6px 14px; border: none; }
+    .btn-edit { background: #ffcc00; border-radius: 10px; padding: 6px 14px; border: none; }
+    .btn-add  { background: #136CED; border-radius: 10px; padding: 6px 14px; color: #fff; border: none; }
+    .btn-delete { background: #ff383c; border-radius: 10px; padding: 6px 14px; color: #fff; border: none; }
+
+    @media (max-width: 576px) {
+      .figma-actions {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 8px;
+      }
+
+      .figma-actions .btn-view,
+      .figma-actions .btn-edit,
+      .figma-actions .btn-add,
+      .figma-actions .btn-delete {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+    }
+
+    /* ===========================
+       FIGMA-LIKE MODAL STYLES
+       =========================== */
+    .figma-modal .modal-content {
+      border-radius: 18px !important;
+      border: 2px solid #000 !important;
+      font-family: 'Instrument Sans', sans-serif !important;
+      overflow: hidden;
+    }
+
+    .figma-modal-header {
+      padding: 14px 22px;
+      border-bottom: 1px solid #e6e6e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .figma-modal-title {
+      font-size: 22px;
+      font-family: 'Salsa', cursive;
+      font-weight: 700;
+      color: #136CED;
+      margin: 0;
+    }
+
+    .figma-modal-close {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ff383c;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .figma-modal-body {
+      padding: 16px 22px 8px;
+    }
+
+    .figma-modal-footer {
+      padding: 14px 22px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .figma-label {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .figma-input,
+    .figma-select {
+      border-radius: 10px !important;
+      border: 1.4px solid #d1d1d1 !important;
+      padding: 8px 12px !important;
+      font-size: 15px !important;
+    }
+
+    .figma-btn-secondary {
+      width: 100%;
+      padding: 10px;
+      border-radius: 12px;
+      background: #ffffff;
+      border: 1.4px solid #d1d1d1;
+      font-weight: 600;
+      font-size: 16px;
+      color: #136CED;
+    }
+
+    .figma-btn-primary {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      background: #136CED;
+      border: none;
+      color: #fff;
+      font-weight: 700;
+      font-size: 17px;
+    }
+
+    .figma-btn-danger {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      background: #ff383c;
+      border: none;
+      color: #fff;
+      font-weight: 700;
+      font-size: 17px;
+    }
+
+    @media (max-width: 576px) {
+      .figma-modal .modal-dialog {
+        max-width: 94% !important;
+        margin: 0 auto;
+      }
+    }
+
+    /* ===================== ADD STUDENT MODAL STYLES ===================== */
+    .figma-student-add-modal .modal-content {
+      border-radius: 16px !important;
+      border: 2px solid #000 !important;
+      font-family: 'Instrument Sans', sans-serif !important;
+      overflow: hidden;
+    }
+
+    .figma-add-header {
+      padding: 14px 22px;
+      border-bottom: 1px solid #e6e6e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .figma-add-title {
+      font-size: 22px;
+      font-family: 'Salsa', cursive;
+      font-weight: 700;
+      color: #136CED;
+      margin: 0;
+    }
+
+    .figma-add-close {
+      font-size: 24px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #FF383C;
+    }
+
+    .figma-add-body {
+      padding: 18px 22px;
+    }
+
+    .student-search {
+      border-radius: 10px;
+      border: 1.4px solid #d1d1d1;
+      padding: 10px 14px;
+      font-size: 15px;
+      margin-bottom: 16px;
+    }
+
+    .student-list-box {
+      max-height: 380px;
+      overflow-y: auto;
+      border: 1px solid #E0E0E0;
+      border-radius: 12px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .student-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 10px;
+      border-bottom: 1px solid #EFEFEF;
+    }
+
+    .student-item:last-child {
+      border-bottom: none;
+    }
+
+    .student-info {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .btn-add-student-small {
+      background: #136CED;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 10px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    @media (max-width: 576px) {
+      .figma-student-add-modal .modal-dialog {
+        max-width: 94% !important;
+      }
+
+      .student-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .btn-add-student-small {
+        width: 100%;
+      }
+    }
+  `;
+
+  if (loading)
+    return (
+      <div className="text-center p-5">
+        <Spinner />
+      </div>
+    );
 
   return (
     <div className="p-3">
+      <style>{CSS}</style>
 
-      {/* HEADER */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
-        <h3 className="fw-bold mb-2 mb-md-0">Manage Batches</h3>
+      <div className="batch-header">Manage Batches</div>
 
-        <Button variant="outline-secondary" onClick={openAddBatch}>
+      {/* FILTER */}
+      <div className="tutor-filter-wrapper">
+        <span className="tutor-label">Tutor–Batch</span>
+
+        <Form.Select
+          className="tutor-filter"
+          value={selectedTutorFilter}
+          onChange={(e) => setSelectedTutorFilter(e.target.value)}
+        >
+          <option value="ALL">All Tutors</option>
+          {tutors.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name} ({t.id})
+            </option>
+          ))}
+        </Form.Select>
+
+        <Button className="btn-add-batch ms-auto" onClick={openAddBatch}>
           + Add Batch
         </Button>
       </div>
 
-      {/* ERRORS */}
-      {error && (
-        <Alert variant="danger" dismissible onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+      {/* TABLE */}
+      {filteredBatches.length > 0 && (
+        <div className="table-wrapper">
+          <Table bordered className="batch-table m-0">
+            <thead>
+              <tr>
+                <th>Batch Name</th>
+                <th>Timings</th>
+                <th>Tutor</th>
+                <th>Students</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
 
-      {/* FILTER */}
-      <Row className="mb-3">
-        <Col xs={12} sm={8} md={6} lg={4}>
-          <Form.Select
-            className="w-100"
-            value={selectedTutorFilter}
-            onChange={(e) => setSelectedTutorFilter(e.target.value)}
-            style={{ minHeight: "45px" }}
-          >
-            <option value="ALL">All Tutors</option>
-            {tutors.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({t.id})
-              </option>
-            ))}
-          </Form.Select>
-        </Col>
-      </Row>
-
-
-      {/* MAIN CARD */}
-      <Card className="shadow-sm">
-        <Card.Body className="p-0">
-
-          <div className="table-responsive">
-            <Table bordered hover className="m-0">
-              <thead className="table-dark">
-                <tr>
-                  <th>Batch Name</th>
-                  <th>Timings</th>
-                  <th>Tutor</th>
-                  <th>Students</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredBatches.length === 0 ? (
+            <tbody>
+              {filteredBatches.map((b) => (
+                <React.Fragment key={b.id}>
                   <tr>
-                    <td colSpan="5" className="text-center text-muted py-3">
-                      No batches found.
+                    <td>{b.name}</td>
+                    <td>
+                      {formatTime(b.startTime)} – {formatTime(b.endTime)}
+                    </td>
+                    <td>{b.tutorName || "Not Assigned"}</td>
+                    <td>{b.students?.length || 0}</td>
+
+                    <td className="figma-actions">
+                      <button
+                        className="btn-view"
+                        onClick={() =>
+                          setExpandedBatch(expandedBatch === b.id ? null : b.id)
+                        }
+                      >
+                        View
+                      </button>
+
+                      <button
+                        className="btn-edit"
+                        onClick={() => openEditBatch(b)}
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        className="btn-add"
+                        onClick={() => {
+                          setSelectedBatchForStudent(b);
+                          setStudentSearch("");
+                          setShowStudentModal(true);
+                        }}
+                      >
+                        + Add Students
+                      </button>
+
+                      <button
+                        className="btn-delete"
+                        onClick={() => {
+                          setDeleteTarget(b);
+                          setShowDeleteModal(true);
+                        }}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
-                ) : (
-                  filteredBatches.map((b) => (
-                    <React.Fragment key={b.id}>
-                      <tr>
-                        <td>{b.name}</td>
-                        <td>{formatTime(b.startTime)} - {formatTime(b.endTime)}</td>
-                        <td>{b.tutorName || "Not assigned"}</td>
-                        <td>{b.students?.length || 0}</td>
 
-                        <td className="text-nowrap">
+                  {/* COLLAPSE STUDENT LIST */}
+                  <tr>
+                    <td colSpan={5} className="p-0">
+                      <Collapse in={expandedBatch === b.id}>
+                        <div className="p-3 bg-light">
+                          {b.students?.length ? (
+                            <Table bordered size="sm" className="m-0">
+                              <thead>
+                                <tr>
+                                  <th>ID</th>
+                                  <th>Name</th>
+                                  <th>Email</th>
+                                  <th>Contact</th>
+                                  <th>Remove</th>
+                                </tr>
+                              </thead>
 
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="me-1 mb-1"
-                            onClick={() =>
-                              setExpandedBatch(expandedBatch === b.id ? null : b.id)
-                            }
-                          >
-                            View
-                          </Button>
+                              <tbody>
+                                {b.students.map((s) => (
+                                  <tr key={s.id}>
+                                    <td>{s.id}</td>
+                                    <td>{s.name}</td>
+                                    <td>{s.email}</td>
+                                    <td>{s.contact}</td>
+                                    <td>
+                                      <button
+                                        className="btn-delete"
+                                        onClick={() =>
+                                          API.delete(
+                                            `/admin/batch/${b.id}/remove-student/${s.id}`
+                                          ).then(fetchBatches)
+                                        }
+                                      >
+                                        Remove
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </Table>
+                          ) : (
+                            <p className="text-muted m-0">
+                              No students assigned.
+                            </p>
+                          )}
+                        </div>
+                      </Collapse>
+                    </td>
+                  </tr>
+                </React.Fragment>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+      )}
 
-                          <Button
-                            size="sm"
-                            variant="warning"
-                            className="me-1 mb-1"
-                            onClick={() => openEditBatch(b)}
-                          >
-                            Edit
-                          </Button>
+      {/* ADD STUDENT MODAL – FIGMA STYLE */}
+      <Modal
+        show={showStudentModal}
+        onHide={() => setShowStudentModal(false)}
+        centered
+        dialogClassName="figma-student-add-modal"
+      >
+        {/* HEADER */}
+        <div className="figma-add-header">
+          <div className="figma-add-title">Add Student to Batch</div>
+          <span
+            className="figma-add-close"
+            onClick={() => setShowStudentModal(false)}
+          >
+            ×
+          </span>
+        </div>
 
-                          <Button
-                            size="sm"
-                            variant="success"
-                            className="me-1 mb-1"
-                            onClick={() => {
-                              setSelectedBatchForStudent(b);
-                              setShowStudentModal(true);
-                            }}
-                          >
-                            Add Student
-                          </Button>
+        {/* BODY */}
+        <div className="figma-add-body">
+          {/* Search box */}
+          <input
+            type="text"
+            className="student-search w-100"
+            placeholder="Search by ID, Name, or Course..."
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+          />
 
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            className="mb-1"
-                            onClick={() => confirmDeleteBatch(b)}
-                          >
-                            Delete
-                          </Button>
+          {/* Student List */}
+          <div className="student-list-box">
+            {filteredAvailableStudents.length ? (
+              filteredAvailableStudents.map((s) => (
+                <div key={s.id} className="student-item">
+                  <div className="student-info">
+                    {s.name} ({s.id})
+                    <div className="text-muted" style={{ fontSize: "13px" }}>
+                      {s.course || "No Course"}
+                    </div>
+                  </div>
 
-                        </td>
-                      </tr>
+                  <button
+                    className="btn-add-student-small"
+                    onClick={async () => {
+                      if (!selectedBatchForStudent) return;
 
-                      {/* COLLAPSE SECTION */}
-                      <tr>
-                        <td colSpan="5" style={{ padding: 0 }}>
-                          <Collapse in={expandedBatch === b.id}>
-                            <div className="p-3 bg-light border-top">
+                      await API.post(
+                        `/admin/batch/${selectedBatchForStudent.id}/add-student/${s.id}`
+                      );
 
-                              {b.students?.length > 0 ? (
-                                <div className="table-responsive">
-                                  <Table bordered hover size="sm" className="m-0">
-                                    <thead>
-                                      <tr>
-                                        <th>ID</th>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                        <th>Contact</th>
-                                        <th>Action</th>
-                                      </tr>
-                                    </thead>
+                      // Update local state so UI updates instantly
+                      const updatedBatch = {
+                        ...selectedBatchForStudent,
+                        students: [
+                          ...(selectedBatchForStudent.students || []),
+                          s,
+                        ],
+                      };
 
-                                    <tbody>
-                                      {b.students.map((s) => (
-                                        <tr key={s.id}>
-                                          <td>{s.id}</td>
-                                          <td>{s.name}</td>
-                                          <td>{s.email || "—"}</td>
-                                          <td>{s.contact || "—"}</td>
-
-                                          <td>
-                                            <Button
-                                              size="sm"
-                                              variant="danger"
-                                              onClick={() =>
-                                                removeStudentFromBatch(b.id, s.id)
-                                              }
-                                            >
-                                              Remove
-                                            </Button>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </Table>
-                                </div>
-                              ) : (
-                                <p className="text-muted m-0">No students assigned.</p>
-                              )}
-
-                            </div>
-                          </Collapse>
-                        </td>
-                      </tr>
-                    </React.Fragment>
-                  ))
-                )}
-              </tbody>
-            </Table>
+                      setSelectedBatchForStudent(updatedBatch);
+                      setBatches((prev) =>
+                        prev.map((b) =>
+                          b.id === updatedBatch.id ? updatedBatch : b
+                        )
+                      );
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-muted m-0 py-3">
+                No available students found.
+              </p>
+            )}
           </div>
-        </Card.Body>
-      </Card>
+        </div>
 
-      {/* ---------------- ADD / EDIT BATCH MODAL ---------------- */}
-      <Modal show={showForm} onHide={() => setShowForm(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>{editingBatch?.id ? "Edit Batch" : "Add Batch"}</Modal.Title>
-        </Modal.Header>
+        {/* FOOTER */}
+        <div className="d-flex justify-content-end p-3">
+          <Button variant="secondary" onClick={() => setShowStudentModal(false)}>
+            Close
+          </Button>
+        </div>
+      </Modal>
 
-        <Modal.Body>
-          <Form onSubmit={handleSaveBatch}>
+      {/* ADD / EDIT BATCH MODAL – FIGMA STYLE */}
+      <Modal
+        show={showForm}
+        onHide={() => setShowForm(false)}
+        centered
+        dialogClassName="figma-modal"
+      >
+        <div className="figma-modal-header">
+          <div className="figma-modal-title">
+            {editingBatch?.id ? "Edit Batch" : "Add Batch"}
+          </div>
+          <span
+            className="figma-modal-close"
+            onClick={() => setShowForm(false)}
+          >
+            ×
+          </span>
+        </div>
+
+        <Form onSubmit={handleSaveBatch}>
+          <div className="figma-modal-body">
             <Form.Group className="mb-3">
-              <Form.Label>Batch Name</Form.Label>
+              <Form.Label className="figma-label">Batch Name</Form.Label>
               <Form.Control
+                className="figma-input"
                 value={editingBatch?.name || ""}
-                onChange={(e) => setEditingBatch({ ...editingBatch, name: e.target.value })}
+                onChange={(e) =>
+                  setEditingBatch({ ...editingBatch, name: e.target.value })
+                }
                 required
               />
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Start Time</Form.Label>
+              <Form.Label className="figma-label">Start Time</Form.Label>
               <Form.Control
                 type="time"
+                className="figma-input"
                 value={editingBatch?.startTime || ""}
-                onChange={(e) => setEditingBatch({ ...editingBatch, startTime: e.target.value })}
+                onChange={(e) =>
+                  setEditingBatch({
+                    ...editingBatch,
+                    startTime: e.target.value,
+                  })
+                }
                 required
               />
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>End Time</Form.Label>
+              <Form.Label className="figma-label">End Time</Form.Label>
               <Form.Control
                 type="time"
+                className="figma-input"
                 value={editingBatch?.endTime || ""}
-                onChange={(e) => setEditingBatch({ ...editingBatch, endTime: e.target.value })}
+                onChange={(e) =>
+                  setEditingBatch({
+                    ...editingBatch,
+                    endTime: e.target.value,
+                  })
+                }
                 required
               />
             </Form.Group>
 
             <Form.Group>
-              <Form.Label>Tutor</Form.Label>
+              <Form.Label className="figma-label">Select Tutor</Form.Label>
               <Form.Select
+                className="figma-select"
                 value={editingBatch?.tutorId || ""}
                 onChange={(e) => {
-                  const tutorId = e.target.value;
-                  const tutor = tutors.find((t) => t.id === tutorId);
+                  const tid = e.target.value;
+                  const t = tutors.find((x) => x.id === tid);
                   setEditingBatch({
                     ...editingBatch,
-                    tutorId,
-                    tutorName: tutor?.name || "",
+                    tutorId: tid,
+                    tutorName: t?.name || "",
                   });
                 }}
               >
@@ -440,100 +783,66 @@ function Batches() {
                 ))}
               </Form.Select>
             </Form.Group>
+          </div>
 
-            <div className="text-end mt-3">
-              <Button variant="secondary" onClick={() => setShowForm(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" type="submit" className="ms-2">
-                Save
-              </Button>
-            </div>
-          </Form>
-        </Modal.Body>
-      </Modal>
-
-      {/* ---------------- ADD STUDENT MODAL ---------------- */}
-      <Modal show={showStudentModal} onHide={() => setShowStudentModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            Add Student {selectedBatchForStudent ? `to ${selectedBatchForStudent.name}` : ""}
-          </Modal.Title>
-        </Modal.Header>
-
-        <Modal.Body>
-          <Form.Select
-            value={selectedStudentId}
-            onChange={(e) => setSelectedStudentId(e.target.value)}
-          >
-            <option value="">Select Student</option>
-            {students.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.id})
-              </option>
-            ))}
-          </Form.Select>
-
-          <div className="text-end mt-3">
-            <Button variant="secondary" onClick={() => setShowStudentModal(false)}>
+          <div className="figma-modal-footer">
+            <Button
+              type="button"
+              className="figma-btn-secondary"
+              onClick={() => setShowForm(false)}
+            >
               Cancel
             </Button>
-            <Button variant="success" onClick={addStudentToBatch} className="ms-2">
-              Add
+            <Button type="submit" className="figma-btn-primary">
+              Save
             </Button>
           </div>
-        </Modal.Body>
+        </Form>
       </Modal>
 
-      {/* ---------------- DELETE CONFIRMATION ---------------- */}
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Delete Batch</Modal.Title>
-        </Modal.Header>
-
-        <Modal.Body>
-          {deleteTarget ? (
-            <>
-              <p>
-                <strong>Batch:</strong> {deleteTarget.name}
-              </p>
-
-              <p className="text-danger">
-                Deleting this batch may fail if linked tasks or attendance exist.
-              </p>
-
-              <p>
-                <strong>Students assigned:</strong> {deleteTarget.students?.length || 0}
-              </p>
-            </>
-          ) : (
-            "Confirm delete?"
-          )}
-        </Modal.Body>
-
-        <Modal.Footer>
-          <Button
-            variant="secondary"
+      {/* DELETE MODAL – FIGMA STYLE */}
+      <Modal
+        show={showDeleteModal}
+        onHide={() => setShowDeleteModal(false)}
+        centered
+        dialogClassName="figma-modal"
+      >
+        <div className="figma-modal-header">
+          <div className="figma-modal-title">Delete Batch</div>
+          <span
+            className="figma-modal-close"
             onClick={() => setShowDeleteModal(false)}
-            disabled={deleteLoading}
+          >
+            ×
+          </span>
+        </div>
+
+        <div className="figma-modal-body">
+          <p className="fw-bold mb-2">
+            Batch: {deleteTarget?.name || "—"}
+          </p>
+          <p className="text-danger mb-0">
+            This batch may have linked attendance or tasks. Are you sure you
+            want to delete it?
+          </p>
+        </div>
+
+        <div className="figma-modal-footer">
+          <Button
+            className="figma-btn-secondary"
+            onClick={() => setShowDeleteModal(false)}
           >
             Cancel
           </Button>
-
           <Button
-            variant="danger"
-            onClick={handleDeleteBatch}
+            className="figma-btn-danger"
+            onClick={deleteBatch}
             disabled={deleteLoading}
           >
-            {deleteLoading ? (
-              <Spinner animation="border" size="sm" />
-            ) : (
-              "Delete"
-            )}
+            {deleteLoading ? <Spinner size="sm" /> : "Delete"}
           </Button>
-        </Modal.Footer>
+        </div>
       </Modal>
-
     </div>
   );
 }

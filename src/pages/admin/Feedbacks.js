@@ -1,5 +1,6 @@
+// src/pages/admin/Feedback.jsx
 import React, { useEffect, useState } from "react";
-import { Table, Spinner, Alert } from "react-bootstrap";
+import { Spinner, Alert } from "react-bootstrap";
 import API from "../../api/api";
 
 function Feedback() {
@@ -14,8 +15,7 @@ function Feedback() {
     try {
       const res = await API.get("/admin/feedbacks");
       setFeedbacks(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setError("Failed to fetch feedbacks.");
     } finally {
       setLoading(false);
@@ -27,7 +27,7 @@ function Feedback() {
   }, []);
 
   // ---------------------------
-  // LOADING SCREEN
+  // LOADING
   // ---------------------------
   if (loading)
     return (
@@ -42,37 +42,90 @@ function Feedback() {
   return (
     <div className="p-3">
 
-      {/* Internal Styling */}
+      {/* ------------ INTERNAL STYLING ------------ */}
       <style>{`
-        .feedback-title {
-          font-size: 1.8rem;
+        @import url('https://fonts.googleapis.com/css2?family=Salsa&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+
+        * {
+          font-family: 'Instrument Sans', sans-serif;
+        }
+
+        .page-title {
+          font-size: 38px;
+          font-weight: 700;
+          text-align: center;
+          margin-bottom: 35px;
+          font-family: 'Salsa', cursive;
+        }
+
+        .feedback-table-container {
+          border: 2px solid #000;
+          border-radius: 14px;
+          width: 100%;
+          background: #fff;
+
+          /* ENABLE HORIZONTAL OVERFLOW ON MOBILE */
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        table.feedback-table {
+          width: 100%;
+          min-width: 650px; /* important for mobile horizontal scroll */
+          border-collapse: collapse;
+        }
+
+        table.feedback-table thead th {
+          background: #136CED;
+          color: #ffffff;
+          padding: 14px;
+          border: 1px solid #000;
+          font-size: 18px;
+          font-weight: 700;
+          text-align: center;
+          white-space: nowrap;
+          font-family: 'Salsa', cursive;
+        }
+
+        table.feedback-table tbody td {
+          padding: 14px;
+          border: 1px solid #000;
+          font-size: 16px;
+          vertical-align: middle;
+          text-align: center;
+        }
+
+        .feedback-text {
+          text-align: left !important;
+          font-size: 15px;
+          line-height: 20px;
         }
 
         @media (max-width: 576px) {
-          .feedback-title {
-            font-size: 1.3rem;
+          table.feedback-table tbody td {
+            font-size: 14px;
+            padding: 12px;
           }
-        }
 
-        .feedback-table-wrapper {
-          width: 100%;
-          overflow-x: auto;
-        }
-
-        table td {
-          vertical-align: middle;
+          .feedback-text {
+            font-size: 14px;
+            line-height: 19px;
+          }
         }
       `}</style>
 
-      <h3 className="fw-bold mb-3 feedback-title">Student Feedbacks</h3>
+      {/* Title */}
+      <h1 className="page-title">Student Feedbacks</h1>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <div className="feedback-table-wrapper">
-        <Table bordered hover responsive className="shadow-sm text-center">
-          <thead className="table-dark">
+      {/* TABLE */}
+      <div className="feedback-table-container">
+        <table className="feedback-table">
+          <thead>
             <tr>
-              <th>#</th>
               <th>Student</th>
               <th>Student ID</th>
               <th>Feedback</th>
@@ -81,23 +134,16 @@ function Feedback() {
           </thead>
 
           <tbody>
-            {feedbacks.length > 0 ? (
+            {feedbacks.length ? (
               feedbacks
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                .map((fb, index) => (
+                .sort(
+                  (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+                )
+                .map((fb) => (
                   <tr key={fb.id}>
-                    <td>{index + 1}</td>
-
-                    {/* Student Name */}
                     <td>{fb.studentName || "Unknown"}</td>
-
-                    {/* Student ID */}
                     <td>{fb.studentId || "—"}</td>
-
-                    {/* Feedback */}
-                    <td style={{ textAlign: "left" }}>{fb.content || "—"}</td>
-
-                    {/* Timestamp */}
+                    <td className="feedback-text">{fb.content || "—"}</td>
                     <td>
                       {fb.timestamp
                         ? new Date(fb.timestamp).toLocaleString()
@@ -107,14 +153,15 @@ function Feedback() {
                 ))
             ) : (
               <tr>
-                <td colSpan={5} className="text-muted">
+                <td colSpan="4" className="text-muted py-3">
                   No feedback records found.
                 </td>
               </tr>
             )}
           </tbody>
-        </Table>
+        </table>
       </div>
+
     </div>
   );
 }

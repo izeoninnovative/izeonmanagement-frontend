@@ -1,14 +1,6 @@
+// src/pages/student/StudentFeedback.jsx
 import React, { useEffect, useState, useCallback } from "react";
-import {
-  Table,
-  Button,
-  Modal,
-  Form,
-  Spinner,
-  Alert,
-  Badge,
-  Card,
-} from "react-bootstrap";
+import { Table, Button, Form, Spinner, Alert, Card } from "react-bootstrap";
 import API from "../../api/api";
 import { useAuth } from "../../context/AuthContext";
 
@@ -18,55 +10,122 @@ function StudentFeedback() {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
-  const [showModal, setShowModal] = useState(false);
 
   const [form, setForm] = useState({
     content: "",
     targetRole: "ADMIN",
   });
 
-  /* --------------------------------------------------
-      Premium Styling + Animated Banner
-  -------------------------------------------------- */
-  const styles = `
-    .feedback-header {
-      background: linear-gradient(135deg, #1a73e8, #673ab7, #d500f9);
-      background-size: 300% 300%;
-      animation: gradientMove 6s ease infinite;
-      border-radius: 16px;
-      padding: 20px 25px;
-      color: white;
+  /* ==================== INTERNAL CSS ==================== */
+  const CSS = `
+   
+     @import url('https://fonts.googleapis.com/css2?family=Salsa:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+    * { font-family: 'Instrument Sans', sans-serif !important; }
+    .page-title {
+      font-size: 40px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 25px;
+      font-family: 'Salsa', cursive !important;
     }
 
-    @keyframes gradientMove {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
-    .feedback-card {
+    .feedback-box {
+      border: 3px solid #136CED;
       border-radius: 18px;
-      transition: all 0.25s ease;
+      padding: 30px;
+      background: #fff;
+      margin-bottom: 40px;
     }
 
-    .feedback-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+    .feed-flex-box {
+      display: flex;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .feedback-label {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .feedback-input {
+      background: #F4F4F4;
+      padding: 16px;
+      border-radius: 12px;
+      border: 1.5px solid #DDD;
+      font-size: 16px;
+      flex-grow: 1;
+      resize: none;
+      height: 120px;
+    }
+
+    .feedback-btn {
+      background: #34C759;
+      border: none;
+      padding: 16px 26px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      white-space: nowrap;
+      align-self: flex-end;
+      height: fit-content;
+      margin-top: auto;
+    }
+
+    .feedback-btn:hover {
+      background: #27b74d;
+    }
+
+    /* ---------- TABLE ---------- */
+    .att-table th {
+      background: #136CED !important;
+      color: #fff !important;
+      border: 1px solid #000 !important;
+      text-align: center;
+      padding: 12px;
+      font-size: 18px;
+      font-family: 'Salsa', cursive !important;
+    }
+
+    .att-table td {
+      border: 1px solid #000 !important;
+      padding: 10px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    /* ---------- MOBILE FIX ---------- */
+    @media (max-width: 768px) {
+      .feed-flex-box {
+        flex-direction: column;
+      }
+
+      .feedback-btn {
+        width: 100%;
+        margin-top: 10px;
+        align-self: unset;
+      }
+
+      .feedback-input {
+        height: 140px;
+      }
     }
   `;
 
-  /* --------------------------------------------------
-      FETCH FEEDBACKS
-  -------------------------------------------------- */
+  /* ==================== FETCH FEEDBACK ==================== */
   const fetchFeedbacks = useCallback(async () => {
     try {
       const res = await API.get(`/student/${user.id}/feedback`);
-      setFeedbacks(Array.isArray(res.data) ? res.data : []);
+
+      const sorted = [...res.data].sort(
+        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+      );
+
+      setFeedbacks(sorted);
     } catch {
-      setMessage({
-        type: "danger",
-        text: "❌ Failed to load your feedback.",
-      });
+      setMessage({ type: "danger", text: "Failed to load feedback." });
     } finally {
       setLoading(false);
     }
@@ -76,9 +135,7 @@ function StudentFeedback() {
     fetchFeedbacks();
   }, [fetchFeedbacks]);
 
-  /* --------------------------------------------------
-      SUBMIT FEEDBACK
-  -------------------------------------------------- */
+  /* ==================== SUBMIT FEEDBACK ==================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage(null);
@@ -86,7 +143,7 @@ function StudentFeedback() {
     if (!form.content.trim()) {
       return setMessage({
         type: "warning",
-        text: "⚠️ Please write your feedback.",
+        text: "Please enter your feedback.",
       });
     }
 
@@ -95,117 +152,104 @@ function StudentFeedback() {
 
       setMessage({
         type: "success",
-        text: "✅ Feedback submitted successfully!",
+        text: "Feedback submitted successfully!",
       });
 
-      setShowModal(false);
       setForm({ content: "", targetRole: "ADMIN" });
       fetchFeedbacks();
     } catch {
       setMessage({
         type: "danger",
-        text: "❌ Failed to submit. Try again.",
+        text: "Failed to submit feedback.",
       });
     }
   };
 
-  /* --------------------------------------------------
-      LOADING UI
-  -------------------------------------------------- */
+  /* ==================== LOADING UI ==================== */
   if (loading)
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "60vh" }}>
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ height: "60vh" }}
+      >
         <Spinner animation="border" />
       </div>
     );
 
+  /* ==================== PAGE UI ==================== */
   return (
     <div className="p-3 p-md-4">
-      <style>{styles}</style>
+      <style>{CSS}</style>
 
-      {/* HEADER */}
-      <div className="feedback-header mb-4">
-        <div className="d-flex justify-content-between align-items-center">
-          <h3 className="fw-bold mb-0">My Feedback</h3>
-
-          <Button variant="light" className="fw-semibold" onClick={() => setShowModal(true)}>
-            + Submit Feedback
-          </Button>
-        </div>
-      </div>
+      <h2 className="page-title">My Feedback</h2>
 
       {message && (
-        <Alert variant={message.type} className="text-center shadow-sm fw-semibold">
+        <Alert variant={message.type} className="text-center fw-semibold">
           {message.text}
         </Alert>
       )}
 
-      {/* NO FEEDBACK MESSAGE */}
-      {feedbacks.length === 0 ? (
-        <Card className="p-4 text-center shadow-sm feedback-card">
-          <h6 className="text-muted">You haven’t submitted any feedback yet.</h6>
-        </Card>
-      ) : (
-        <Card className="shadow-sm feedback-card">
-          <Table bordered hover responsive className="mb-0">
-            <thead className="table-dark">
-              <tr>
-                <th>#</th>
-                <th>Feedback</th>
-                <th>Submitted To</th>
-                <th>Submitted On</th>
-              </tr>
-            </thead>
+      {/* ---------------- FEEDBACK FORM BOX ---------------- */}
+      <div className="feedback-box">
+        <Form onSubmit={handleSubmit}>
+          <div className="feed-flex-box">
 
-            <tbody>
-              {feedbacks.map((fb, index) => (
-                <tr key={fb.id}>
-                  <td>{index + 1}</td>
-                  <td className="text-start">{fb.content}</td>
-                  <td>
-                    <Badge bg="info">ADMIN</Badge>
-                  </td>
-                  <td>{fb.timestamp ? new Date(fb.timestamp).toLocaleString() : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Card>
-      )}
+            {/* LEFT: Label + Textarea */}
+            <div className="flex-grow-1 d-flex flex-column">
+              <Form.Label className="feedback-label">
+                Your Feedback
+              </Form.Label>
 
-      {/* ---------------- FEEDBACK MODAL ---------------- */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>📝 Submit Feedback</Modal.Title>
-        </Modal.Header>
-
-        <Modal.Body>
-          <Form onSubmit={handleSubmit}>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Your Feedback</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={4}
+                rows={3}
+                placeholder="Enter your feedback..."
+                className="feedback-input"
                 value={form.content}
-                onChange={(e) => setForm({ ...form, content: e.target.value })}
-                placeholder="Write your feedback..."
-                required
+                onChange={(e) =>
+                  setForm({ ...form, content: e.target.value })
+                }
               />
-            </Form.Group>
-
-            <div className="text-end">
-              <Button variant="secondary" className="me-2" onClick={() => setShowModal(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary">
-                Submit
-              </Button>
             </div>
 
-          </Form>
-        </Modal.Body>
-      </Modal>
+            {/* RIGHT: Submit button (aligned bottom on desktop) */}
+            <Button type="submit" className="feedback-btn">
+              Submit Feedback
+            </Button>
+          </div>
+        </Form>
+      </div>
+
+      {/* ---------------- FEEDBACK TABLE ---------------- */}
+      {feedbacks.length === 0 ? (
+        <Card className="p-4 text-center shadow-sm">
+          <h6 className="text-muted">No feedback submitted yet.</h6>
+        </Card>
+      ) : (
+        <Table bordered responsive className="att-table">
+          <thead>
+            <tr>
+              <th>Feedback</th>
+              <th>Submitted To</th>
+              <th>Submitted On</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {feedbacks.map((fb) => (
+              <tr key={fb.id}>
+                <td className="text-start">{fb.content}</td>
+                <td>ADMIN</td>
+                <td>
+                  {fb.timestamp
+                    ? new Date(fb.timestamp).toLocaleString()
+                    : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
     </div>
   );
 }

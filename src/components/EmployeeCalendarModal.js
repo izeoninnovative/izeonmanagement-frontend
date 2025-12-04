@@ -1,50 +1,45 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Modal, Button, Spinner, Badge, Card } from "react-bootstrap";
+import { Modal, Button, Spinner, Badge } from "react-bootstrap";
 import API from "../api/api";
 
 function EmployeeCalendarModal({ employee, show, onHide }) {
   const [records, setRecords] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState(null);
-  const [holidays, setHolidays] = useState([]); // ⭐ Admin holidays
+  const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth()); // 0–11
+  const [month, setMonth] = useState(today.getMonth());
 
-  /* ---------------------------------------------------------
-     FETCH DATA
-  --------------------------------------------------------- */
+  /* ==========================================
+        FETCH DATA
+  ========================================== */
   const fetchData = useCallback(async () => {
     if (!employee?.id) return;
 
     setLoading(true);
 
     try {
-      // Attendance
-      const attRes = await API.get(`/employee/${employee.id}/attendance`);
-      setRecords(attRes.data || []);
+      const att = await API.get(`/employee/${employee.id}/attendance`);
+      setRecords(att.data || []);
 
-      // Leaves
-      const leaveRes = await API.get(`/employee/${employee.id}/leaves`);
-      setLeaves(leaveRes.data || []);
+      const lv = await API.get(`/employee/${employee.id}/leaves`);
+      setLeaves(lv.data || []);
 
-      // Leave balance
-      const lbRes = await API.get(
+      const lb = await API.get(
         `/employee/${employee.id}/leave-balance?month=${month + 1}&year=${year}`
       );
-      setLeaveBalance(lbRes.data || null);
+      setLeaveBalance(lb.data || null);
 
-      // ⭐ Admin Holidays
-      const hRes = await API.get("/admin/holidays");
-      const activeHolidays = (hRes.data || [])
-        .filter((h) => h.active)
-        .map((h) => h.date);
-      setHolidays(activeHolidays);
-
-    } catch (err) {
-      console.error("Calendar load failed:", err);
+      const h = await API.get("/admin/holidays");
+      const list = (h.data || [])
+        .filter((x) => x.active)
+        .map((x) => x.date);
+      setHolidays(list);
+    } catch (e) {
+      console.error("Calendar error:", e);
     } finally {
       setLoading(false);
     }
@@ -54,45 +49,40 @@ function EmployeeCalendarModal({ employee, show, onHide }) {
     if (show) fetchData();
   }, [show, month, year, fetchData]);
 
-  /* ---------------------------------------------------------
-     CALENDAR HELPERS
-  --------------------------------------------------------- */
+  /* ==========================================
+        HELPERS
+  ========================================== */
   const generateCalendar = () => {
     const first = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const total = new Date(year, month + 1, 0).getDate();
 
     const arr = [];
     for (let i = 0; i < first; i++) arr.push(null);
-    for (let d = 1; d <= daysInMonth; d++) arr.push(d);
+    for (let d = 1; d <= total; d++) arr.push(d);
+
     return arr;
   };
 
-  const formatDate = (day) =>
-    `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const formatDate = (d) =>
+    `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
-  /* ---------------------------------------------------------
-     STATUS LOGIC (HOLIDAY TOP PRIORITY)
-  --------------------------------------------------------- */
   const getStatus = (dateStr) => {
-    // ⭐ A. Holiday from Admin
     if (holidays.includes(dateStr)) return "HOLIDAY";
 
-    // B. Attendance record might already mark holiday
     const att = records.find((a) => a.date === dateStr);
     if (att) {
-      if (att.holiday === true) return "HOLIDAY";
+      if (att.holiday) return "HOLIDAY";
       if (att.present === true) return "PRESENT";
       if (att.present === false) return "ABSENT";
     }
 
-    // C. Leave
     const leave = leaves.find(
       (l) =>
         l.status === "APPROVED" &&
         dateStr >= l.fromDate &&
         dateStr <= l.toDate
     );
-    if (leave) return `LEAVE_${leave.type}`;
+    if (leave) return "LEAVE";
 
     return null;
   };
@@ -111,89 +101,94 @@ function EmployeeCalendarModal({ employee, show, onHide }) {
     } else setMonth((p) => p - 1);
   };
 
-  /* ---------------------------------------------------------
-     RENDER UI
-  --------------------------------------------------------- */
+  /* ==========================================
+        UI
+  ========================================== */
   return (
-    <Modal show={show} onHide={onHide} centered size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>Attendance Calendar – {employee?.name}</Modal.Title>
+    <Modal
+      show={show}
+      onHide={onHide}
+      centered
+      size="lg"
+      contentClassName="calendar-modal"
+    >
+      <Modal.Header closeButton className="border-0 pb-0 modal-header-custom">
+        <Modal.Title className="title-text">
+          Attendance Calendar – {employee?.name}
+        </Modal.Title>
       </Modal.Header>
 
-      <Modal.Body style={{ maxHeight: "75vh", overflowY: "auto" }}>
-        
-        {/* LEAVE BALANCE */}
-        {leaveBalance && (
-          <Card className="p-2 mb-3 shadow-sm">
-            <h6 className="fw-bold mb-2">
-              Leave Days — {month + 1}/{year}
-            </h6>
+      <Modal.Body>
 
-            <div className="small">
-              <div><strong>Sick Leave:</strong> {leaveBalance.sickDays.join(", ") || "None"}</div>
-              <div><strong>Casual Leave:</strong> {leaveBalance.casualDays.join(", ") || "None"}</div>
-              <div><strong>Paid Leave:</strong> {leaveBalance.paidDays.join(", ") || "None"}</div>
-              <div><strong>On Duty:</strong> {leaveBalance.odDays.join(", ") || "None"}</div>
+        {leaveBalance && (
+          <div className="leave-box">
+            <h6 className="leave-header">Leave Days — {month + 1}/{year}</h6>
+
+            <div className="leave-grid">
+              <span>• Sick Leave: {leaveBalance.sickDays?.join(", ") || "None"}</span>
+              <span>• Casual Leave: {leaveBalance.casualDays?.join(", ") || "None"}</span>
+              <span>• Paid Leave: {leaveBalance.paidDays?.join(", ") || "None"}</span>
+              <span>• On Duty: {leaveBalance.odDays?.join(", ") || "None"}</span>
+              <span>• Total No of Working Dates: {leaveBalance.totalWorkingDays || 0}</span>
             </div>
-          </Card>
+          </div>
         )}
 
-        {/* MONTH SWITCH */}
-        <div className="d-flex justify-content-between mb-3">
-          <Button size="sm" onClick={prevMonth} variant="outline-primary">◀ Prev</Button>
+        {/* Month Navigation */}
+        <div className="month-nav">
+          <button className="nav-btn" onClick={prevMonth}>◀ Prev</button>
 
-          <h5 className="fw-bold">
-            {new Date(year, month).toLocaleString("default", { month: "long", year: "numeric" })}
+          <h5 className="month-title">
+            {new Date(year, month).toLocaleString("default", {
+              month: "long",
+              year: "numeric",
+            })}
           </h5>
 
-          <Button size="sm" onClick={nextMonth} variant="outline-primary">Next ▶</Button>
+          <button className="nav-btn" onClick={nextMonth}>Next ▶</button>
         </div>
 
-        {/* WEEK HEADERS */}
-        <div className="calendar-weekdays mb-2">
+        {/* Week Headers */}
+        <div className="week-row">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-            <div key={d} className="weekday-cell fw-bold small">{d}</div>
+            <div key={d} className="week-box">{d}</div>
           ))}
         </div>
 
-        {/* GRID */}
+        {/* Calendar Grid */}
         {loading ? (
-          <div className="text-center py-4">
+          <div className="text-center py-3">
             <Spinner animation="border" />
           </div>
         ) : (
-          <div className="calendar-grid">
+          <div className="grid">
             {generateCalendar().map((day, idx) => {
-              if (!day) return <div key={idx} className="empty-cell"></div>;
+              if (!day) return <div key={idx} className="cell empty"></div>;
 
               const dateStr = formatDate(day);
-              const status = getStatus(dateStr);
+              const st = getStatus(dateStr);
+              const dow = new Date(year, month, day).getDay();
 
-              const dayObj = new Date(year, month, day);
-              const isSunday = dayObj.getDay() === 0;
-
-              let cls = "day-default";
-
-              // ⭐ PRIORITY ORDER
-              if (status === "HOLIDAY") cls = "day-holiday";
-              else if (isSunday) cls = "day-sunday";
-              else if (status === "PRESENT") cls = "day-present";
-              else if (status === "ABSENT") cls = "day-absent";
-              else if (status?.startsWith("LEAVE_")) cls = "day-leave";
+              let cls = "cell default";
+              if (st === "HOLIDAY") cls = "cell holiday";
+              else if (dow === 0) cls = "cell sunday";
+              else if (st === "PRESENT") cls = "cell present";
+              else if (st === "ABSENT") cls = "cell absent";
+              else if (st === "LEAVE") cls = "cell leave";
 
               return (
-                <div key={idx} className={`calendar-cell-small ${cls}`}>
+                <div key={idx} className={cls}>
                   {day}
                 </div>
               );
             })}
           </div>
         )}
+
       </Modal.Body>
 
-      <Modal.Footer>
-        <div className="me-auto small">
-          <b>Legend:</b>&nbsp;
+      <Modal.Footer className="footer-custom">
+        <div className="small legend">
           <Badge bg="info">Holiday</Badge>&nbsp;
           <Badge bg="secondary">Sunday</Badge>&nbsp;
           <Badge bg="success">Present</Badge>&nbsp;
@@ -201,43 +196,164 @@ function EmployeeCalendarModal({ employee, show, onHide }) {
           <Badge bg="warning" text="dark">Leave</Badge>
         </div>
 
-        <Button variant="secondary" onClick={onHide}>Close</Button>
+        <Button className="close-btn" onClick={onHide}>
+          Close
+        </Button>
       </Modal.Footer>
 
-      {/* STYLES */}
-      <style jsx>{`
-        .calendar-weekdays {
+      {/* Styles */}
+      <style>{`
+        .calendar-modal {
+          border-radius: 20px;
+          padding: 10px;
+        }
+
+        /* Close button red (#FF383C) */
+        .modal-header-custom .btn-close {
+          filter: invert(35%) sepia(98%) saturate(7499%) hue-rotate(352deg) brightness(97%) contrast(108%);
+        }
+
+        .title-text {
+          font-weight: 700;
+          font-size: 26px;
+          font-family: 'Salsa', cursive;
+
+        }
+
+        .leave-box {
+          border: 2px solid #000;
+          padding: 15px;
+          border-radius: 12px;
+          margin-bottom: 20px;
+        }
+
+        .leave-header {
+          font-weight: 700;
+          margin-bottom: 10px;
+          color: #136CED;
+          font-family: 'Salsa', cursive;
+        }
+
+        .leave-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 6px;
+          font-size: 14px;
+        }
+
+        .month-nav {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin: 15px 0 20px;
+        }
+
+        .nav-btn {
+          border: 1px solid #136CED;
+          background: none;
+          padding: 5px 12px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #136CED;
+        }
+
+        .month-title {
+          font-weight: 700;
+          font-size: 20px;
+          font-family: 'Salsa', cursive;
+        }
+
+        .week-row {
           display: grid;
           grid-template-columns: repeat(7, 1fr);
-          gap: 6px;
+          gap: 8px;
+          margin-bottom: 10px;
         }
-        .weekday-cell {
-          padding: 5px;
+
+        .week-box {
           background: #e9ecef;
-          border-radius: 4px;
+          padding: 6px 0;
+          text-align: center;
+          border-radius: 8px;
+          font-weight: 600;
+          font-family:'Salsa', cursive;
         }
-        .calendar-grid {
+
+        .grid {
           display: grid;
           grid-template-columns: repeat(7, 1fr);
-          gap: 6px;
+          gap: 8px;
         }
-        .calendar-cell-small,
-        .empty-cell {
-          padding: 6px 0;
-          height: 30px;
-          border-radius: 4px;
-          text-align: center;
-          font-size: 0.8rem;
+
+        .cell {
+          height: 40px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          border-radius: 8px;
+          font-size: 14px;
           font-weight: 600;
         }
 
+        .empty {
+          background: transparent;
+        }
+
         /* COLORS */
-        .day-default { background: #f8f9fa; }
-        .day-holiday { background: #17a2b8; color: #fff; }   /* BLUE HOLIDAY */
-        .day-sunday  { background: #6c757d; color: #fff; }
-        .day-present { background: #198754; color: #fff; }
-        .day-absent  { background: #dc3545; color: #fff; }
-        .day-leave   { background: #ffc107; color: #000; }
+        .default { background: #f8f9fa; }
+        .holiday { background: #17a2b8; color: white; }
+        .sunday { background: #6c757d; color: white; }
+        .present { background: #198754; color: white; }
+        .absent { background: #dc3545; color: white; }
+        .leave { background: #ffc107; color: black; }
+
+        .footer-custom {
+          display: flex;
+          justify-content: space-between;
+          width: 100%;
+        }
+
+        .close-btn {
+          background: #FF383C;
+          border: none;
+        }
+
+        /* =========================
+            MOBILE RESPONSIVE 
+        ========================= */
+        @media (max-width: 600px) {
+          .title-text {
+            font-size: 20px;
+          }
+
+          .leave-grid {
+            grid-template-columns: repeat(1, 1fr);
+          }
+
+          .week-box,
+          .cell {
+            font-size: 12px;
+            height: 32px;
+          }
+
+          .grid {
+            gap: 4px;
+          }
+
+          .calendar-modal {
+            padding: 6px;
+          }
+
+          .month-title {
+            font-size: 16px;
+          }
+
+          .nav-btn {
+            padding: 4px 10px;
+            font-size: 12px;
+          }
+        }
       `}</style>
     </Modal>
   );

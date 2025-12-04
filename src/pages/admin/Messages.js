@@ -1,15 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Table,
-  Button,
-  Modal,
-  Form,
-  Spinner,
-  Alert,
-  Badge,
-  Tabs,
-  Tab,
-} from "react-bootstrap";
+import { Table, Button, Form, Spinner, Alert } from "react-bootstrap";
 import API from "../../api/api";
 
 function Messages() {
@@ -17,8 +7,7 @@ function Messages() {
   const [sent, setSent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState("inbox");
-  const [showModal, setShowModal] = useState(false);
+  const [active, setActive] = useState("inbox");
 
   const [form, setForm] = useState({
     receiverRole: "",
@@ -27,33 +16,10 @@ function Messages() {
     body: "",
   });
 
-  /* ---------------- INTERNAL RESPONSIVE CSS ---------------- */
-  const internalStyles = `
-    .messages-wrapper {
-      width: 100%;
-      overflow-x: auto;
-    }
-
-    .messages-title {
-      font-size: 1.7rem;
-    }
-
-    @media (max-width: 576px) {
-      .messages-title {
-        font-size: 1.3rem;
-      }
-      .tab-container {
-        font-size: 0.9rem;
-      }
-      .msg-text {
-        text-align: left !important;
-      }
-    }
-  `;
-
-  /* ---------------- FETCH MESSAGES ---------------- */
+  /* -------------------------------
+      FETCH MESSAGES
+  --------------------------------*/
   const fetchMessages = useCallback(async () => {
-    setLoading(true);
     try {
       const [inboxRes, sentRes] = await Promise.all([
         API.get("/admin/messages/received"),
@@ -62,8 +28,8 @@ function Messages() {
 
       setInbox(inboxRes.data || []);
       setSent(sentRes.data || []);
-    } catch (err) {
-      console.error(err);
+      setError(null);
+    } catch {
       setError("Failed to load messages");
     } finally {
       setLoading(false);
@@ -74,330 +40,544 @@ function Messages() {
     fetchMessages();
   }, [fetchMessages]);
 
-  /* ---------------- FORM HANDLER ---------------- */
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  /* ---------------- SEND MESSAGE ---------------- */
+  /* -------------------------------
+      SEND MESSAGE
+  --------------------------------*/
   const handleSend = async (e) => {
     e.preventDefault();
-
     try {
       await API.post("/admin/message/send", {
         senderRole: "ADMIN",
         ...form,
       });
 
-      alert("Message sent successfully!");
-      setShowModal(false);
-
+      alert("Message sent!");
       setForm({ receiverRole: "", receiverId: "", subject: "", body: "" });
-
       fetchMessages();
-      setActiveTab("sent");
-    } catch (err) {
-      console.error("Send error:", err);
+      setActive("sent");
+    } catch {
       alert("Failed to send message");
     }
   };
 
-  /* ---------------- MARK AS READ ---------------- */
+  /* -------------------------------
+      MARK AS READ
+  --------------------------------*/
   const markAsRead = async (id) => {
     try {
       await API.put(`/admin/messages/${id}/read`);
       fetchMessages();
-    } catch (err) {
-      console.error("Update failed:", err);
-    }
+    } catch {}
   };
 
-  /* ---------------- LOADING ---------------- */
+  /* -------------------------------
+      LOADING
+  --------------------------------*/
   if (loading)
     return (
-      <div
-        className="d-flex justify-content-center align-items-center"
-        style={{ height: "70vh" }}
-      >
+      <div style={styles.loader}>
         <Spinner animation="border" />
       </div>
     );
 
-  return (
-    <div className="p-3">
-      <style>{internalStyles}</style>
+  /* -------------------------------
+      REUSABLE TABLE RENDER
+  --------------------------------*/
+  const renderTable = (rows, type) => (
+    <Table bordered hover style={styles.table} className="d-none d-md-table">
+      <thead>
+        <tr>
+          {type === "inbox" && <th style={styles.th}>From</th>}
+          {type === "sent" && <th style={styles.th}>To</th>}
+          <th style={styles.th}>Subject</th>
+          <th style={styles.th}>Message</th>
+          <th style={styles.th}>Sent At</th>
+          {type === "inbox" && <th style={styles.th}>Status</th>}
+        </tr>
+      </thead>
 
-      <h3 className="fw-bold mb-3 messages-title">Admin Messages</h3>
+      <tbody>
+        {rows.length ? (
+          rows
+            .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
+            .map((m) => (
+              <tr key={m.id}>
+                <td style={styles.td}>
+                  {type === "inbox" ? m.senderName : m.receiverName}
+                </td>
+                <td style={styles.td}>{m.subject}</td>
+                <td style={{ ...styles.td, textAlign: "left" }}>{m.body}</td>
+                <td style={styles.td}>
+                  {new Date(m.sentAt).toLocaleString()}
+                </td>
+
+                {type === "inbox" && (
+                  <td style={styles.td}>
+                    {m.readStatus ? (
+                      <span style={styles.readBtn}>Read</span>
+                    ) : (
+                      <button
+                        style={styles.markReadBtn}
+                        onClick={() => markAsRead(m.id)}
+                      >
+                        Mark as Read
+                      </button>
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))
+        ) : (
+          <tr>
+            <td colSpan={type === "inbox" ? 5 : 4} style={styles.noMsg}>
+              No messages
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </Table>
+  );
+
+  const renderMobileTable = (rows, type) => (
+    <div className="d-md-none" style={styles.mobileCard}>
+      <table style={styles.mobileTable}>
+        <thead>
+          <tr>
+            <th style={styles.mobileTh}>{type === "inbox" ? "From" : "To"}</th>
+            <th style={styles.mobileTh}>Subject</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length ? (
+            rows.map((m) => (
+              <tr key={m.id}>
+                <td style={styles.mobileTd}>
+                  {type === "inbox" ? m.senderName : m.receiverName}
+                </td>
+                <td style={styles.mobileTd}>{m.subject}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={2} style={styles.noMsg}>
+                No messages
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  /* -------------------------------
+      MAIN RENDER
+  --------------------------------*/
+  return (
+    <div style={{ padding: "20px" }}>
+    <style>{`
+  @import url('https://fonts.googleapis.com/css2?family=Salsa&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+
+  * {
+    font-family: 'Instrument Sans', sans-serif !important;
+  }
+
+  .salsa {
+    font-family: 'Salsa', cursive !important;
+  }
+
+  .send-form-btn{
+    display: flex;
+    justify-content: center;
+  }
+  .send-form-btn-mobile{
+    display: flex;
+    justify-content: end;
+  }
+`}</style>
+
+      <h1 style={styles.title} className="salsa">Messages</h1>
+
+      {/* MOBILE TABS */}
+      <div className="d-md-none" style={styles.mobileTabs}>
+        {["inbox", "sent"].map((tab) => (
+          <button
+            key={tab}
+            style={{
+              ...styles.mobileTabBtn,
+              ...(active === tab ? styles.mobileTabActive : {}),
+            }}
+            onClick={() => setActive(tab)}
+          >
+            {tab === "inbox" ? "📥 Inbox" : "📤 Sent"}
+          </button>
+        ))}
+      </div>
+
+      {/* MOBILE SEND MESSAGE */}
+      <div className="d-md-none" style={styles.sendBox}>
+        <button style={styles.sendBtnMobile} onClick={() => setActive("send")}>
+          Send Message ➤
+        </button>
+      </div>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <Tabs
-        activeKey={activeTab}
-        onSelect={setActiveTab}
-        className="mb-3 tab-container"
-        justify
-      >
-
-        {/* ================= INBOX TAB ================= */}
-        <Tab eventKey="inbox" title="📥 Inbox">
-          <div className="messages-wrapper">
-            <Table bordered hover responsive className="shadow-sm text-center">
-              <thead className="table-dark">
-                <tr>
-                  <th>From</th>
-                  <th>Role</th>
-                  <th>Subject</th>
-                  <th className="msg-text">Message</th>
-                  <th>Sent At</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {inbox.length > 0 ? (
-                  inbox
-                    .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
-                    .map((msg) => (
-                      <tr key={msg.id}>
-                        <td>{msg.senderName || msg.senderId}</td>
-
-                        <td>
-                          <Badge
-                            bg={
-                              msg.senderRole === "STUDENT"
-                                ? "info"
-                                : msg.senderRole === "EMPLOYEE"
-                                ? "secondary"
-                                : "dark"
-                            }
-                          >
-                            {msg.senderRole}
-                          </Badge>
-                        </td>
-
-                        <td>{msg.subject}</td>
-
-                        <td className="msg-text">{msg.body}</td>
-
-                        <td>{new Date(msg.sentAt).toLocaleString()}</td>
-
-                        <td>
-                          <Badge bg={msg.readStatus ? "success" : "warning"}>
-                            {msg.readStatus ? "Read" : "Unread"}
-                          </Badge>
-                        </td>
-
-                        <td>
-                          {!msg.readStatus && (
-                            <Button
-                              size="sm"
-                              variant="outline-success"
-                              onClick={() => markAsRead(msg.id)}
-                            >
-                              Mark Read
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="text-muted">
-                      No messages found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </Table>
-          </div>
-        </Tab>
-
-        {/* ================= SENT TAB ================= */}
-        <Tab eventKey="sent" title="📤 Sent">
-          <div className="messages-wrapper">
-            <Table bordered hover responsive className="shadow-sm text-center">
-              <thead className="table-dark">
-                <tr>
-                  <th>To</th>
-                  <th>Role</th>
-                  <th>Subject</th>
-                  <th className="msg-text">Message</th>
-                  <th>Sent At</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {sent.length > 0 ? (
-                  sent
-                    .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
-                    .map((msg) => (
-                      <tr key={msg.id}>
-                        <td>{msg.receiverName || msg.receiverId}</td>
-
-                        <td>
-                          <Badge
-                            bg={
-                              msg.receiverRole === "STUDENT"
-                                ? "info"
-                                : msg.receiverRole === "EMPLOYEE"
-                                ? "secondary"
-                                : "dark"
-                            }
-                          >
-                            {msg.receiverRole}
-                          </Badge>
-                        </td>
-
-                        <td>{msg.subject}</td>
-
-                        <td className="msg-text">{msg.body}</td>
-
-                        <td>{new Date(msg.sentAt).toLocaleString()}</td>
-                      </tr>
-                    ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="text-muted">
-                      No sent messages.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </Table>
-          </div>
-        </Tab>
-
-        {/* ================= SEND MESSAGE TAB ================= */}
-        <Tab eventKey="send" title="✉️ Send Message">
-          <Form
-            onSubmit={handleSend}
-            className="border p-3 bg-light shadow-sm rounded"
+      {/* ------------------- DESKTOP VIEW ------------------- */}
+      <div className="msg-main-box d-none d-md-flex" style={styles.desktopBox}>
+        <div style={styles.sidebar}>
+          <button
+            style={{
+              ...styles.sidebarBtn,
+              ...(active === "inbox" ? styles.sidebarActive : {}),
+            }}
+            onClick={() => setActive("inbox")}
           >
-            <Form.Group className="mb-3">
-              <Form.Label>Receiver Role</Form.Label>
-              <Form.Select
-                name="receiverRole"
-                value={form.receiverRole}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select Role</option>
-                <option value="EMPLOYEE">Employee</option>
-                <option value="STUDENT">Student</option>
-              </Form.Select>
-            </Form.Group>
+            📥 Inbox
+          </button>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Receiver ID</Form.Label>
-              <Form.Control
-                name="receiverId"
-                placeholder="E101 / S102"
-                value={form.receiverId}
-                onChange={handleChange}
-                required
-              />
-            </Form.Group>
+          <button
+            style={{
+              ...styles.sidebarBtn,
+              ...(active === "sent" ? styles.sidebarActive : {}),
+            }}
+            onClick={() => setActive("sent")}
+          >
+            📤 Sent
+          </button>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Subject</Form.Label>
-              <Form.Control
-                name="subject"
-                value={form.subject}
-                onChange={handleChange}
-                required
-              />
-            </Form.Group>
+          <button
+            style={{
+              ...styles.sidebarBtn,
+              ...(active === "send" ? styles.sidebarActive : {}),
+            }}
+            onClick={() => setActive("send")}
+          >
+            ✉ Send Message
+          </button>
+        </div>
 
-            <Form.Group>
-              <Form.Label>Message</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={4}
-                name="body"
-                value={form.body}
-                onChange={handleChange}
-                required
-              />
-            </Form.Group>
+        <div style={styles.desktopContent}>
+          <h2 style={styles.sectionTitle} className="salsa">
+            {active === "inbox"
+              ? "Inbox Message"
+              : active === "sent"
+              ? "Sent Messages"
+              : "Send Message"}
+          </h2>
 
-            <div className="text-end mt-3">
-              <Button variant="primary" type="submit">
-                Send Message
-              </Button>
-            </div>
-          </Form>
-        </Tab>
-      </Tabs>
+          {active === "inbox" && renderTable(inbox, "inbox")}
+          {active === "sent" && renderTable(sent, "sent")}
 
-      {/* ================== MODAL SEND MESSAGE ================= */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Send Message</Modal.Title>
-        </Modal.Header>
+          {active === "send" && (
+            <Form onSubmit={handleSend} style={styles.sendForm}>
+              <Form.Group className="mb-3">
+                <Form.Label>Receiver Role</Form.Label>
+                <Form.Select
+                  value={form.receiverRole}
+                  onChange={(e) =>
+                    setForm({ ...form, receiverRole: e.target.value })
+                  }
+                  required
+                >
+                  <option value="">Select Role</option>
+                  <option value="EMPLOYEE">Employee</option>
+                  <option value="STUDENT">Student</option>
+                </Form.Select>
+              </Form.Group>
 
-        <Modal.Body>
-          <Form onSubmit={handleSend}>
-            <Form.Group className="mb-3">
-              <Form.Label>Receiver Role</Form.Label>
-              <Form.Select
-                name="receiverRole"
-                value={form.receiverRole}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select Role</option>
-                <option value="EMPLOYEE">Employee</option>
-                <option value="STUDENT">Student</option>
-              </Form.Select>
-            </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Receiver ID</Form.Label>
+                <Form.Control
+                  value={form.receiverId}
+                  onChange={(e) =>
+                    setForm({ ...form, receiverId: e.target.value })
+                  }
+                  required
+                />
+              </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Receiver ID</Form.Label>
-              <Form.Control
-                name="receiverId"
-                placeholder="E101 / S102"
-                value={form.receiverId}
-                onChange={handleChange}
-                required
-              />
-            </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Subject</Form.Label>
+                <Form.Control
+                  value={form.subject}
+                  onChange={(e) =>
+                    setForm({ ...form, subject: e.target.value })
+                  }
+                  required
+                />
+              </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Subject</Form.Label>
-              <Form.Control
-                name="subject"
-                value={form.subject}
-                onChange={handleChange}
-                required
-              />
-            </Form.Group>
+              <Form.Group>
+                <Form.Label>Message</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={4}
+                  value={form.body}
+                  onChange={(e) =>
+                    setForm({ ...form, body: e.target.value })
+                  }
+                  required
+                />
+              </Form.Group>
 
-            <Form.Group>
-              <Form.Label>Message</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="body"
-                value={form.body}
-                onChange={handleChange}
-                required
-              />
-            </Form.Group>
+              <div className="send-form-btn">
+          <Button type="submit" style={styles.sendSubmitBtn}>
+            Send
+          </Button>
+          </div>
+            </Form>
+          )}
+        </div>
+      </div>
 
-            <div className="text-end mt-3">
-              <Button variant="secondary" onClick={() => setShowModal(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" type="submit" className="ms-2">
-                Send
-              </Button>
-            </div>
-          </Form>
-        </Modal.Body>
-      </Modal>
+      {/* ------------------- MOBILE VIEW ------------------- */}
+      {active === "inbox" && renderMobileTable(inbox, "inbox")}
+      {active === "sent" && renderMobileTable(sent, "sent")}
+      {active === "send" && (
+        <Form onSubmit={handleSend} className="d-md-none" style={styles.mobileSendForm}>
+          <Form.Group className="mb-2">
+            <Form.Label>Receiver Role</Form.Label>
+            <Form.Select
+              value={form.receiverRole}
+              onChange={(e) =>
+                setForm({ ...form, receiverRole: e.target.value })
+              }
+            >
+              <option value="">Select Role</option>
+              <option value="EMPLOYEE">Employee</option>
+              <option value="STUDENT">Student</option>
+            </Form.Select>
+          </Form.Group>
+
+          <Form.Group className="mb-2">
+            <Form.Label>Receiver ID</Form.Label>
+            <Form.Control
+              value={form.receiverId}
+              onChange={(e) =>
+                setForm({ ...form, receiverId: e.target.value })
+              }
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-2">
+            <Form.Label>Subject</Form.Label>
+            <Form.Control
+              value={form.subject}
+              onChange={(e) =>
+                setForm({ ...form, subject: e.target.value })
+              }
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-2">
+            <Form.Label>Message</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={4}
+              value={form.body}
+              onChange={(e) =>
+                setForm({ ...form, body: e.target.value })
+              }
+            />
+          </Form.Group>
+          <div className="send-form-btn-mobile">
+          <Button type="submit" style={styles.sendSubmitBtn}>
+            Send
+          </Button>
+          </div>
+        </Form>
+      )}
     </div>
   );
 }
+
+/* -----------------------------------
+        INLINE STYLES
+----------------------------------- */
+const styles = {
+  loader: {
+    height: "70vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  title: {
+    fontFamily: "Salsa",
+    fontSize: "34px",
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+
+  /* DESKTOP */
+  desktopBox: {
+    width: "100%",
+    height: "80vh",
+    border: "2px solid #000",
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+
+  sidebar: {
+    width: 260,
+    background: "#F5F5F5",
+    paddingTop: 100,
+  },
+
+  sidebarBtn: {
+    width: "100%",
+    padding: "12px 14px",
+    background: "transparent",
+    border: "none",
+    textAlign: "left",
+    fontWeight: 400,
+    fontSize: 18,
+    borderRadius: 8,
+    
+  },
+
+  sidebarActive: {
+    background: "#fff",
+    border: "2px solid #000",
+   
+  },
+
+  desktopContent: {
+    flex: 1,
+    padding: 30,
+    overflowY: "auto",
+  },
+
+  sectionTitle: {
+    fontWeight: 700,
+    fontSize: 26,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+
+  /* TABLE */
+  table: { marginTop: 10 },
+  th: {
+    background: "#136CED",
+    color: "#fff",
+    fontWeight: 700,
+    textAlign: "center",
+    fontFamily: "Salsa",
+  },
+  td: {
+    textAlign: "center",
+    fontWeight: 300,
+  },
+  noMsg: {
+    textAlign: "center",
+    padding: 20,
+  },
+
+  readBtn: {
+    background: "#34C759",
+    padding: "5px 12px",
+    border: "none",
+    borderRadius: 8,
+    color: "#fff",
+  },
+
+  markReadBtn: {
+    background: "#FFCC00",
+    padding: "5px 12px",
+    border: "none",
+    borderRadius: 8,
+    fontWeight: 700,
+  },
+
+  /* SEND FORM */
+  sendForm: {
+    border: "2px solid #000",
+    padding: 20,
+    borderRadius: 14,
+    marginTop: 10,
+  },
+
+  sendSubmitBtn: {
+    marginTop: 10,
+    background: "#34C759",
+    border: "none",
+    padding: "10px 20px",
+    borderRadius: 8,
+    display: "flex",
+    alignItems:"end"
+  },
+
+  /* MOBILE */
+  mobileTabs: {
+    display: "flex",
+    justifyContent: "center",
+    gap: 12,
+    marginBottom: 15,
+  },
+
+  mobileTabBtn: {
+    padding: "8px 18px",
+    borderRadius: 10,
+    border: "1px solid #000",
+    background: "#fff",
+    fontWeight: 500,
+  },
+
+  mobileTabActive: {
+    background: "#136CED",
+    color: "#fff",
+    borderColor: "#136CED",
+    border:"none"
+  },
+
+  sendBox: {
+    display: "flex",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+
+  sendBtnMobile: {
+    padding: "10px 18px",
+    borderRadius: 10,
+    border: "1px solid #000",
+    background: "#fff",
+    fontWeight: 600,
+  },
+
+  mobileCard: {
+    border: "2px solid #000",
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 10,
+  },
+
+  mobileTable: {
+    width: "100%",
+  },
+
+  mobileTh: {
+    background: "#136CED",
+    color: "#fff",
+    padding: 6,
+    fontWeight: 500,
+    border: "1px solid #000",
+  
+  },
+
+  mobileTd: {
+    padding: 6,
+    fontWeight: 500,
+    border: "1px solid #000",
+  },
+
+  mobileSendForm: {
+    border: "2px solid #000",
+    borderRadius: 14,
+    padding: 15,
+    
+  },
+};
 
 export default Messages;

@@ -5,65 +5,216 @@ import {
   Spinner,
   Alert,
   Modal,
-  ListGroup,
   Form,
-  Card,
 } from "react-bootstrap";
 import API from "../../api/api";
 import { useAuth } from "../../context/AuthContext";
 
 function StudentBatches() {
   const { user } = useAuth();
+
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Message Modal
+  /* MESSAGE MODAL */
   const [showModal, setShowModal] = useState(false);
   const [receiver, setReceiver] = useState(null);
   const [msgForm, setMsgForm] = useState({ subject: "", body: "" });
 
-  // Injected Styles (same UI theme as your other pages)
+  /* ---------------------- INTERNAL CSS (NEW CLEAN UI) ---------------------- */
   const styles = `
-    .batch-header {
-      background: linear-gradient(135deg, #1a73e8, #673ab7, #d500f9);
-      background-size: 300% 300%;
-      animation: gradientMove 7s ease infinite;
+    @import url('https://fonts.googleapis.com/css2?family=Salsa:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+
+    * {
+      font-family: 'Instrument Sans', sans-serif !important;
+    }
+
+    .page-title {
+      font-size: 38px;
+      font-weight: 700;
+      color: #136CED;
+      text-align: center;
+      margin-bottom: 22px;
+      font-family: 'Salsa', cursive !important;
+    }
+
+    .outer-box {
+      border: 3px solid #136CED;
       border-radius: 16px;
-      padding: 20px 25px;
-      color: white;
+      padding: 18px 20px;
+      background: #fff;
+      margin-bottom: 28px;
     }
 
-    @keyframes gradientMove {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+    .batch-title {
+      font-size: 30px;
+      text-align: center;
+      color: #136CED;
+      font-weight: 700;
+      font-family: 'Salsa', cursive !important;
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #000;
     }
 
-    .batch-card {
-      border-radius: 18px;
-      transition: 0.25s ease;
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
-    .batch-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    .batch-info {
+      font-size: 17px;
+      font-weight: 500;
+      margin: 4px 0;
     }
 
-    @media(max-width: 576px) {
-      .batch-header h3 {
-        font-size: 1.35rem;
+    .tutor-btn {
+      background: #34C759;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 16px;
+      white-space: nowrap;
+    }
+
+    .batchmates-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 16px 0 12px;
+      color: #000;
+      border-top: 1px solid #000;
+      padding-top: 10px;
+
+      font-family: 'Salsa', cursive !important;
+    }
+
+    .mate-box {
+      border: 2px solid #136CED;
+      background: #f9f9ff;
+      padding: 12px 14px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 17px;
+    }
+
+    .badge-you,
+    .badge-id {
+      background: #136CED;
+      color: #fff;
+      font-size: 13px;
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+
+    .msg-btn {
+      background: #34C759;
+      color: #fff;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      border: none;
+    }
+
+    /* CUSTOM MODAL */
+    .custom-modal .modal-content {
+      border-radius: 18px !important;
+      border: 2px solid #000 !important;
+      overflow: hidden;
+    }
+
+    .custom-header {
+      padding: 14px 20px;
+      background: #f9f9f9;
+      border-bottom: 1px solid #dcdcdc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .custom-title {
+      font-size: 22px;
+      font-weight: 700;
+      font-family: 'Salsa', cursive !important;
+      color: #136CED;
+    }
+
+    .custom-close {
+      font-size: 26px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #FF383C;
+    }
+
+    .custom-body {
+      padding: 18px 20px;
+    }
+
+    .custom-footer {
+      padding: 14px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modal-cancel-btn {
+      padding: 12px;
+      width: 100%;
+      border-radius: 12px;
+      background: #fff;
+      border: 1.4px solid #cfcfcf;
+      font-weight: 600;
+      color: #136CED;
+    }
+
+    .modal-submit-btn {
+      padding: 12px;
+      width: 100%;
+      border-radius: 12px;
+      background: #34C759;
+      border: none;
+      font-weight: 700;
+      color: #fff;
+      font-size: 16px;
+    }
+
+    /* MOBILE OPTIMIZATION */
+    @media (max-width: 576px) {      
+      .batch-title {
+        font-size: 26px;
+      }
+      .outer-box {
+        padding: 15px;
+      }
+      .mate-box {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      .msg-btn {
+        width: 100%;
+      }
+      .custom-modal .modal-dialog {
+        max-width: 95% !important;
       }
     }
   `;
 
-  // Fetch batches
+  /* ---------------------- FETCH BATCHES ---------------------- */
   const fetchBatches = useCallback(async () => {
     try {
       const res = await API.get(`/student/${user.id}/batches`);
       setBatches(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setError("Failed to load your batches.");
     } finally {
       setLoading(false);
@@ -74,14 +225,14 @@ function StudentBatches() {
     fetchBatches();
   }, [fetchBatches]);
 
-  // Open Message Modal
-  const openMessageModal = ({ id, name, role }) => {
-    setReceiver({ id, name, role });
+  /* ---------------------- OPEN MESSAGE MODAL ---------------------- */
+  const openModal = (receiverObj) => {
+    setReceiver(receiverObj);
     setMsgForm({ subject: "", body: "" });
     setShowModal(true);
   };
 
-  // Send Message
+  /* ---------------------- SEND MESSAGE ---------------------- */
   const sendMessage = async (e) => {
     e.preventDefault();
     try {
@@ -91,14 +242,15 @@ function StudentBatches() {
         subject: msgForm.subject,
         body: msgForm.body,
       });
+
       alert("Message sent!");
       setShowModal(false);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to send message. Try again.");
+    } catch {
+      alert("Failed to send message.");
     }
   };
 
+  /* ---------------------- LOADING ---------------------- */
   if (loading)
     return (
       <div
@@ -113,101 +265,96 @@ function StudentBatches() {
     <div className="p-3 p-md-4">
       <style>{styles}</style>
 
-      {/* PAGE HEADER */}
-      <div className="batch-header mb-4">
-        <h3 className="fw-bold mb-0">My Batches</h3>
-      </div>
+      <h2 className="page-title">My Batches</h2>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      {batches.length === 0 && (
-        <Alert variant="info">You are not enrolled in any batches.</Alert>
-      )}
+      {batches.map((batch) => {
+        const mates = batch.students || [];
 
-      {/* ----------------- BATCH LIST ----------------- */}
-      {batches.map((b) => {
-        const batchmates = b.students || [];
         return (
-          <Card key={b.id} className="p-3 mb-4 shadow-sm batch-card">
-            {/* Batch Title */}
-            <h5 className="fw-bold mb-2">
-              <Badge bg="info" text="dark">
-                {b.name}
-              </Badge>
-            </h5>
+          <div key={batch.id} className="outer-box">
 
-            <p className="mb-1">
-              <strong>Timing:</strong> {b.startTime?.slice(0, 5)} – {b.endTime?.slice(0, 5)}
-            </p>
+            <div className="batch-title">{batch.name}</div>
 
-            {/* Tutor Section */}
-            <p className="mb-3">
-              <strong>Tutor:</strong> {b.tutorName}
+            <div className="info-row">
+              <div>
+                <p className="batch-info">
+                  <strong>Timing:</strong> {batch.startTime?.slice(0, 5)} – {batch.endTime?.slice(0, 5)}
+                </p>
+
+                <p className="batch-info">
+                  <strong>Tutor:</strong> {batch.tutorName}
+                </p>
+              </div>
+
               <Button
-                size="sm"
-                className="ms-3"
-                variant="primary"
+                className="tutor-btn"
                 onClick={() =>
-                  openMessageModal({
-                    id: b.tutorId,
-                    name: b.tutorName,
+                  openModal({
+                    id: batch.tutorId,
+                    name: batch.tutorName,
                     role: "EMPLOYEE",
                   })
                 }
               >
                 Message Tutor
               </Button>
-            </p>
+            </div>
 
-            {/* Batchmates */}
-            <h6 className="fw-bold">Batchmates</h6>
-            <ListGroup className="mt-2">
-              {batchmates.map((s) => {
-                const isYou = s.id === user.id;
+            <div className="batchmates-title">Batchmates</div>
 
-                return (
-                  <ListGroup.Item
-                    key={s.id}
-                    className="d-flex justify-content-between align-items-center"
-                  >
-                    <div>
-                      {s.name}{" "}
-                      <Badge bg={isYou ? "primary" : "secondary"}>
-                        {isYou ? "YOU" : s.id}
-                      </Badge>
-                    </div>
+            {mates.map((m) => {
+              const isYou = m.id === user.id;
 
-                    {!isYou && (
-                      <Button
-                        size="sm"
-                        variant="outline-primary"
-                        onClick={() =>
-                          openMessageModal({
-                            id: s.id,
-                            name: s.name,
-                            role: "STUDENT",
-                          })
-                        }
-                      >
-                        Message
-                      </Button>
-                    )}
-                  </ListGroup.Item>
-                );
-              })}
-            </ListGroup>
-          </Card>
+              return (
+                <div key={m.id} className="mate-box">
+                  <div>
+                    {m.name}{" "}
+                    <Badge className={isYou ? "badge-you" : "badge-id"}>
+                      {isYou ? "YOU" : m.id}
+                    </Badge>
+                  </div>
+
+                  {!isYou && (
+                    <Button
+                      className="msg-btn"
+                      onClick={() =>
+                        openModal({
+                          id: m.id,
+                          name: m.name,
+                          role: "STUDENT",
+                        })
+                      }
+                    >
+                      Message
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         );
       })}
 
-      {/* ----------------- MESSAGE MODAL ----------------- */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Message → {receiver?.name}</Modal.Title>
-        </Modal.Header>
+      {/* ---------------------- CUSTOM MODAL ---------------------- */}
+      <Modal
+        show={showModal}
+        centered
+        onHide={() => setShowModal(false)}
+        dialogClassName="custom-modal"
+      >
+        <div className="custom-header">
+          <div className="custom-title">
+            Message → {receiver?.name}
+          </div>
+          <span className="custom-close" onClick={() => setShowModal(false)}>
+            ×
+          </span>
+        </div>
 
-        <Modal.Body>
-          <Form onSubmit={sendMessage}>
+        <div className="custom-body">
+          <Form>
             <Form.Group className="mb-3">
               <Form.Label>Subject</Form.Label>
               <Form.Control
@@ -219,7 +366,7 @@ function StudentBatches() {
               />
             </Form.Group>
 
-            <Form.Group className="mb-3">
+            <Form.Group>
               <Form.Label>Message</Form.Label>
               <Form.Control
                 as="textarea"
@@ -231,17 +378,24 @@ function StudentBatches() {
                 }
               />
             </Form.Group>
-
-            <div className="text-end">
-              <Button variant="secondary" className="me-2" onClick={() => setShowModal(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary">
-                Send
-              </Button>
-            </div>
           </Form>
-        </Modal.Body>
+        </div>
+
+        <div className="custom-footer">
+          <Button
+            className="modal-cancel-btn"
+            onClick={() => setShowModal(false)}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            className="modal-submit-btn"
+            onClick={sendMessage}
+          >
+            Send Message
+          </Button>
+        </div>
       </Modal>
     </div>
   );

@@ -89,7 +89,6 @@ function AppRoutes() {
           <Route path="/admin/feedbacks" element={<ProtectedRoute><AdminFeedbacks /></ProtectedRoute>} />
            <Route path="/admin/holidays" element={<ProtectedRoute><Holidays /></ProtectedRoute>} />
            <Route path="/admin/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-{/* <Route path="/admin/reports/employee/:empId" element={<ProtectedRoute><EmployeeReports /></ProtectedRoute>} /> */}
 
 
           <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />

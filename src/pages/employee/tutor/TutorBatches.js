@@ -1,6 +1,15 @@
-// TutorBatches.jsx
+// src/pages/employee/tutor/TutorBatches.jsx
 import React, { useCallback, useEffect, useState } from "react";
-import { Table, Button, Spinner, Alert, Collapse, Modal, Form, Badge, Card } from "react-bootstrap";
+import {
+  Table,
+  Button,
+  Spinner,
+  Alert,
+  Collapse,
+  Modal,
+  Form,
+  Card,
+} from "react-bootstrap";
 import API from "../../../api/api";
 import { useAuth } from "../../../context/AuthContext";
 
@@ -14,7 +23,7 @@ function TutorBatches() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // TASK MODAL
+  /* ---------------- MODAL STATES ---------------- */
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskBatch, setTaskBatch] = useState(null);
   const [taskForm, setTaskForm] = useState({
@@ -24,19 +33,222 @@ function TutorBatches() {
     dueDate: "",
   });
 
-  // MESSAGE MODAL
   const [showMsgModal, setShowMsgModal] = useState(false);
   const [msgBatch, setMsgBatch] = useState(null);
-  const [msgForm, setMsgForm] = useState({
-    subject: "",
-    body: "",
-  });
+  const [msgForm, setMsgForm] = useState({ subject: "", body: "" });
 
+  /* ---------------- GLOBAL FONTS + STYLE ---------------- */
+  const styles = `
+   /* =========================== FONTS =========================== */
+@import url('https://fonts.googleapis.com/css2?family=Salsa:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+
+* {
+  font-family: 'Instrument Sans', sans-serif !important;
+}
+
+/* =========================== PAGE TITLE =========================== */
+.page-title {
+  font-size: 36px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 25px;
+  font-family: 'Salsa', cursive !important;
+  color: #000;
+}
+
+/* =========================== TABLE =========================== */
+.batch-table thead th {
+  background: #136CED !important;
+  color: #fff !important;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  border: 1px solid #000 !important;
+  padding: 14px;
+  font-family: 'Salsa', cursive !important;
+}
+
+.batch-table td {
+  border: 1px solid #000 !important;
+  text-align: center;
+  padding: 14px !important;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.student-count {
+  font-size: 19px;
+  font-weight: 400;
+  color: #000;
+}
+
+/* Inner student table */
+.inner-table th {
+  background: #F0F0F0 !important;
+  font-weight: 700;
+  border: 1px solid #000 !important;
+}
+
+.inner-table td {
+  border: 1px solid #000 !important;
+}
+
+/* =========================== BUTTONS =========================== */
+.action-view {
+  background: #E0E0E0;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.action-message {
+  background: #fff;
+  border: 2px solid #000;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  color: #136CED;
+}
+
+.action-assign {
+  background: #34C759;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  color: #fff;
+}
+
+/* =========================== MODAL (FIGMA STYLE) =========================== */
+.custom-modal .modal-dialog {
+  max-width: 520px;
+  width: 100%;
+}
+
+.custom-modal .modal-content {
+  border-radius: 18px !important;
+  border: 2px solid #000 !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+}
+
+.custom-header {
+  padding: 14px 22px;
+  border-bottom: 1px solid #e6e6e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.custom-title {
+  font-size: 22px;
+  font-family: 'Salsa', cursive !important;
+  font-weight: 700;
+  color: #136CED;
+}
+
+.custom-close {
+  cursor: pointer;
+  font-size: 24px;
+  font-weight: 700;
+  color: #FF383C;
+}
+
+.custom-body {
+  padding: 18px 22px;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.custom-label {
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.custom-input,
+.custom-textarea {
+  border-radius: 12px !important;
+  border: 1.4px solid #d1d1d1 !important;
+  font-size: 15px !important;
+  padding: 10px !important;
+}
+
+.custom-textarea {
+  min-height: 120px;
+}
+
+.custom-footer {
+  padding: 14px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.modal-cancel-btn {
+  padding: 12px;
+  width: 100%;
+  background: #fff;
+  border: 1.4px solid #d1d1d1;
+  border-radius: 12px;
+  font-weight: 600;
+  color: #136CED;
+}
+
+.modal-submit-btn {
+  padding: 12px;
+  width: 100%;
+  background: #34C759;
+  border-radius: 12px;
+  font-weight: 600;
+  color: #fff;
+  border: none;
+  font-size: 17px;
+}
+
+/* =========================== MOBILE FIX =========================== */
+@media (max-width: 576px) {
+
+  .custom-modal .modal-dialog {
+    max-width: 94% !important;
+    margin: 0 auto;
+    height: 86vh; /* Reduced modal height */
+  }
+
+  .custom-modal .modal-content {
+    max-height: 86vh;
+  }
+
+  .custom-body {
+    max-height: calc(86vh - 260px); /* header + footer fixed */
+    overflow-y: auto !important;
+  }
+
+  .custom-title {
+    font-size: 20px;
+  }
+
+  .custom-input,
+  .custom-textarea {
+    font-size: 14px !important;
+  }
+}
+
+
+  `;
+
+  /* ---------------- FETCH DATA ---------------- */
   const fetchBatches = useCallback(async () => {
     try {
       const res = await API.get(`/employee/${user.id}/batches`);
       setBatches(res.data || []);
-    } catch (err) {
+    } catch {
       setError("Failed to load batches");
     } finally {
       setLoading(false);
@@ -45,7 +257,9 @@ function TutorBatches() {
 
   const fetchStudents = async (batchId) => {
     try {
-      const res = await API.get(`/employee/${user.id}/batch/${batchId}/students`);
+      const res = await API.get(
+        `/employee/${user.id}/batch/${batchId}/students`
+      );
       setStudents((prev) => ({ ...prev, [batchId]: res.data || [] }));
     } catch {
       alert("Failed to fetch students");
@@ -53,14 +267,14 @@ function TutorBatches() {
   };
 
   const toggleExpand = (batchId) => {
-    if (expanded === batchId) {
-      setExpanded(null);
-    } else {
+    if (expanded === batchId) setExpanded(null);
+    else {
       setExpanded(batchId);
       fetchStudents(batchId);
     }
   };
 
+  /* ---------------- TASK MODAL ---------------- */
   const openTaskModal = (batch) => {
     setTaskBatch(batch);
     setTaskForm({
@@ -73,80 +287,81 @@ function TutorBatches() {
   };
 
   const assignTask = async () => {
-    if (!taskForm.type || !taskForm.title || !taskForm.description) return alert("Fill all fields");
+    if (!taskForm.type || !taskForm.title || !taskForm.description)
+      return alert("Fill all fields");
 
     try {
-      const payload = {
-        type: (taskForm.type || "").trim(),
-        title: (taskForm.title || "").trim(),
-        description: (taskForm.description || "").trim(),
-        dueDate: taskForm.dueDate,
-      };
-
-      await API.post(`/employee/${user.id}/batch/${taskBatch.id}/task`, payload);
-      alert("Task Assigned");
+      await API.post(
+        `/employee/${user.id}/batch/${taskBatch.id}/task`,
+        taskForm
+      );
+      alert("Task assigned");
       setShowTaskModal(false);
-      // refresh tasks for that batch if UI uses them elsewhere
-      // (TutorTasks component will also call fetch on mount)
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert("Failed to assign task");
     }
   };
 
+  /* ---------------- MESSAGE MODAL ---------------- */
   const openMsgModal = async (batch) => {
     try {
-      const res = await API.get(`/employee/${user.id}/batch/${batch.id}/students`);
-      setStudents((prev) => ({ ...prev, [batch.id]: res.data }));
-
+      const res = await API.get(
+        `/employee/${user.id}/batch/${batch.id}/students`
+      );
+      setStudents((prev) => ({ ...prev, [batch.id]: res.data || [] }));
       setMsgBatch(batch);
       setMsgForm({ subject: "", body: "" });
       setShowMsgModal(true);
     } catch {
-      alert("Failed to fetch students for message");
+      alert("Cannot fetch students");
     }
   };
 
   const sendMessage = async () => {
-    if (!msgForm.subject.trim() || !msgForm.body.trim()) return alert("Fill all fields");
+    if (!msgForm.subject || !msgForm.body)
+      return alert("Fill all fields");
 
     try {
-      // Backend expects message body and subject on request body — plugin will broadcast to all students
-      const payload = {
-        subject: (msgForm.subject || "").trim(),
-        body: (msgForm.body || "").trim(),
-      };
+      await API.post(
+        `/employee/${user.id}/batch/${msgBatch.id}/message-all`,
+        msgForm
+      );
 
-      await API.post(`/employee/${user.id}/batch/${msgBatch.id}/message-all`, payload);
-      alert("Message sent");
+      alert("Message Sent");
       setShowMsgModal(false);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to send");
+    } catch {
+      alert("Failed to send message");
     }
   };
 
+  /* ---------------- LOAD ---------------- */
   useEffect(() => {
     fetchBatches();
   }, [fetchBatches]);
 
+  /* ---------------- UI ---------------- */
   if (loading)
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "60vh" }}>
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ height: "60vh" }}
+      >
         <Spinner animation="border" />
       </div>
     );
 
   return (
     <div className="p-3">
-      <h3 className="fw-bold mb-3 text-center text-md-start">Manage Batches</h3>
+      <style>{styles}</style>
+
+      <h2 className="page-title">Manage Batches</h2>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <Table bordered hover responsive className="shadow-sm">
-        <thead className="table-dark">
+      <Table bordered responsive hover className="batch-table shadow-sm">
+        <thead>
           <tr>
-            <th>Batch</th>
+            <th>Batch Name</th>
             <th>Timings</th>
             <th>Students</th>
             <th>Actions</th>
@@ -156,85 +371,120 @@ function TutorBatches() {
         <tbody>
           {batches.length === 0 && (
             <tr>
-              <td colSpan="4" className="text-center py-3 text-muted">No batches assigned.</td>
+              <td colSpan="4" className="text-center text-muted py-4">
+                No batches assigned.
+              </td>
             </tr>
           )}
 
           {batches.map((b) => (
             <tr key={b.id}>
               <td>{b.name}</td>
-              <td>{b.startTime?.slice(0, 5)} - {b.endTime?.slice(0, 5)}</td>
-              <td><Badge bg="primary">{b.students?.length || 0}</Badge></td>
-              <td className="text-nowrap batch-actions">
-                <Button size="sm" className="me-2 " variant="secondary" onClick={() => toggleExpand(b.id)}>
+              <td>{b.startTime?.slice(0, 5)} — {b.endTime?.slice(0, 5)}</td>
+
+              <td>
+                <span className="student-count">
+                  {String(b?.students?.length || 0).padStart(2, "0")}
+                </span>
+              </td>
+
+              <td className="text-nowrap">
+                <button
+                  className="action-view me-2"
+                  onClick={() => toggleExpand(b.id)}
+                >
                   {expanded === b.id ? "Hide" : "View"}
-                </Button>
+                </button>
 
-                <Button size="sm" className="me-2" variant="outline-primary" onClick={() => openMsgModal(b)}>
+                <button
+                  className="action-message me-2"
+                  onClick={() => openMsgModal(b)}
+                >
                   Message All
-                </Button>
+                </button>
 
-                <Button size="sm" variant="success" onClick={() => openTaskModal(b)}>
+                <button
+                  className="action-assign"
+                  onClick={() => openTaskModal(b)}
+                >
                   Assign Task
-                </Button>
+                </button>
               </td>
             </tr>
           ))}
 
-          {batches.map((b) =>
-            expanded === b.id ? (
-              <tr key={`expand-${b.id}`}>
-                <td colSpan="4" className="bg-light p-0">
-                  <Collapse in={expanded === b.id}>
-                    <div className="p-3">
-                      <h6 className="fw-bold mb-3">{b.name} — Students</h6>
+          {batches.map(
+            (b) =>
+              expanded === b.id && (
+                <tr key={`exp-${b.id}`}>
+                  <td colSpan="4" className="p-0 bg-light">
+                    <Collapse in={expanded === b.id}>
+                      <div className="p-3">
+                        <h5 className="fw-bold mb-3">
+                          {b.name} — Students
+                        </h5>
 
-                      {students[b.id]?.length > 0 ? (
-                        <Card className="shadow-sm">
-                          <Table bordered hover size="sm" responsive className="m-0">
-                            <thead>
-                              <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Contact</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {students[b.id].map((s) => (
-                                <tr key={s.id}>
-                                  <td>{s.id}</td>
-                                  <td>{s.name}</td>
-                                  <td>{s.email}</td>
-                                  <td>{s.contact}</td>
+                        {students[b.id]?.length > 0 ? (
+                          <Card className="shadow-sm">
+                            <Table bordered size="sm" className="inner-table m-0">
+                              <thead>
+                                <tr>
+                                  <th>ID</th>
+                                  <th>Name</th>
+                                  <th>Email</th>
+                                  <th>Contact</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </Table>
-                        </Card>
-                      ) : (
-                        <p className="text-muted">No students in this batch.</p>
-                      )}
-                    </div>
-                  </Collapse>
-                </td>
-              </tr>
-            ) : null
+                              </thead>
+
+                              <tbody>
+                                {students[b.id].map((s) => (
+                                  <tr key={s.id}>
+                                    <td>{s.id}</td>
+                                    <td>{s.name}</td>
+                                    <td>{s.email}</td>
+                                    <td>{s.contact}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </Table>
+                          </Card>
+                        ) : (
+                          <p className="text-muted">No students found.</p>
+                        )}
+                      </div>
+                    </Collapse>
+                  </td>
+                </tr>
+              )
           )}
         </tbody>
       </Table>
 
-      {/* TASK MODAL */}
-      <Modal show={showTaskModal} onHide={() => setShowTaskModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Assign Task — {taskBatch?.name}</Modal.Title>
-        </Modal.Header>
+      {/* ---------------- TASK MODAL ---------------- */}
+      <Modal
+        show={showTaskModal}
+        onHide={() => setShowTaskModal(false)}
+        centered
+        dialogClassName="custom-modal"
+      >
+        <div className="custom-header">
+          <div className="custom-title">
+            Assign Task — {taskBatch?.name}
+          </div>
+          <span className="custom-close" onClick={() => setShowTaskModal(false)}>×</span>
+        </div>
 
-        <Modal.Body>
+        <div className="custom-body">
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>Task Type</Form.Label>
-              <Form.Select value={taskForm.type} onChange={(e) => setTaskForm({ ...taskForm, type: e.target.value })} required>
+              <Form.Label className="custom-label">Task Type</Form.Label>
+              <Form.Select
+                className="custom-input"
+                value={taskForm.type}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, type: e.target.value })
+                }
+              >
                 <option value="">Select Type</option>
                 <option value="ASSIGNMENT">Assignment</option>
                 <option value="PROJECT">Project</option>
@@ -243,51 +493,115 @@ function TutorBatches() {
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Task Title</Form.Label>
-              <Form.Control value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="Enter title" required />
+              <Form.Label className="custom-label">Title</Form.Label>
+              <Form.Control
+                className="custom-input"
+                value={taskForm.title}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, title: e.target.value })
+                }
+              />
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Description</Form.Label>
-              <Form.Control as="textarea" rows={3} value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} placeholder="Write task details" required />
+              <Form.Label className="custom-label">Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                className="custom-textarea"
+                value={taskForm.description}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, description: e.target.value })
+                }
+              />
             </Form.Group>
 
             <Form.Group>
-              <Form.Label>Due Date</Form.Label>
-              <Form.Control type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} required />
+              <Form.Label className="custom-label">Due Date</Form.Label>
+              <Form.Control
+                type="date"
+                className="custom-input"
+                value={taskForm.dueDate}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, dueDate: e.target.value })
+                }
+              />
             </Form.Group>
-
-            <div className="text-end mt-3">
-              <Button variant="secondary" className="me-2" onClick={() => setShowTaskModal(false)}>Cancel</Button>
-              <Button variant="primary" onClick={assignTask}>Assign Task</Button>
-            </div>
           </Form>
-        </Modal.Body>
+        </div>
+
+        <div className="custom-footer">
+          <Button
+            className="modal-cancel-btn"
+            onClick={() => setShowTaskModal(false)}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            className="modal-submit-btn"
+            onClick={assignTask}
+          >
+            Assign Task
+          </Button>
+        </div>
       </Modal>
 
-      {/* MESSAGE MODAL */}
-      <Modal show={showMsgModal} onHide={() => setShowMsgModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Message All — {msgBatch?.name}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      {/* ---------------- MESSAGE MODAL ---------------- */}
+      <Modal
+        show={showMsgModal}
+        onHide={() => setShowMsgModal(false)}
+        centered
+        dialogClassName="custom-modal"
+      >
+        <div className="custom-header">
+          <div className="custom-title">
+            Message All — {msgBatch?.name}
+          </div>
+          <span className="custom-close" onClick={() => setShowMsgModal(false)}>×</span>
+        </div>
+
+        <div className="custom-body">
           <Form>
-            <Form.Group className="mb-2">
-              <Form.Label>Subject</Form.Label>
-              <Form.Control value={msgForm.subject} onChange={(e) => setMsgForm({ ...msgForm, subject: e.target.value })} placeholder="Message subject" />
-            </Form.Group>
-
             <Form.Group className="mb-3">
-              <Form.Label>Message</Form.Label>
-              <Form.Control as="textarea" rows={3} value={msgForm.body} onChange={(e) => setMsgForm({ ...msgForm, body: e.target.value })} placeholder="Write message..." />
+              <Form.Label className="custom-label">Subject</Form.Label>
+              <Form.Control
+                className="custom-input"
+                value={msgForm.subject}
+                onChange={(e) =>
+                  setMsgForm({ ...msgForm, subject: e.target.value })
+                }
+              />
             </Form.Group>
 
-            <div className="text-end">
-              <Button variant="secondary" className="me-2" onClick={() => setShowMsgModal(false)}>Cancel</Button>
-              <Button variant="primary" onClick={sendMessage}>Send Message</Button>
-            </div>
+            <Form.Group>
+              <Form.Label className="custom-label">Message</Form.Label>
+              <Form.Control
+                as="textarea"
+                className="custom-textarea"
+                value={msgForm.body}
+                onChange={(e) =>
+                  setMsgForm({ ...msgForm, body: e.target.value })
+                }
+              />
+            </Form.Group>
           </Form>
-        </Modal.Body>
+        </div>
+
+        <div className="custom-footer">
+          <Button
+            className="modal-cancel-btn"
+            onClick={() => setShowMsgModal(false)}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            className="modal-submit-btn"
+            onClick={sendMessage}
+          >
+            Send Message
+          </Button>
+        </div>
       </Modal>
     </div>
   );
