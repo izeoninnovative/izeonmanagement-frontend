@@ -69,7 +69,7 @@ function Login() {
           width: 100%;
           height: 100vh;
           background-image: url(${bgImage});
-          background-size: auto;
+          background-size: cover;
           background-position: center;
           background-repeat: no-repeat;
           position: relative;
