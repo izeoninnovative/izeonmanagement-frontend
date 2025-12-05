@@ -599,10 +599,10 @@ function EmployeeAttendance() {
                         <td>
                           <span
                             className={
-                              done ? "badge-approved" : "badge-rejected"
+                              "badge-approved" 
                             }
                           >
-                            {done ? "Completed" : "Absent"}
+                            {done ? "Completed" : "Present"}
                           </span>
                         </td>
                       </tr>

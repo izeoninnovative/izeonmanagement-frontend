@@ -273,7 +273,7 @@ function TutorStudents() {
         map[a.studentId][a.batchId] = a.present;
       });
       setAttendanceMap(map);
-    } catch {}
+    } catch { }
   }, [today, user.id]);
 
   useEffect(() => {
@@ -420,16 +420,26 @@ function TutorStudents() {
 
                       <button className="btn-message" onClick={() => openMessageModal(s)}>Message</button>
 
-                      <button
-                        className="btn-attendance"
-                        disabled={status !== undefined}
-                        onClick={() => {
-                          setAttendanceStudent(s);
-                          setShowAttendanceModal(true);
-                        }}
-                      >
-                        Attendance
-                      </button>
+                      {status !== undefined ? (
+                        <button
+                          className="btn-attendance"
+                          style={{ background: "#A9A9A9", cursor: "not-allowed" }}
+                          disabled
+                        >
+                          Marked
+                        </button>
+                      ) : (
+                        <button
+                          className="btn-attendance"
+                          onClick={() => {
+                            setAttendanceStudent(s);
+                            setShowAttendanceModal(true);
+                          }}
+                        >
+                          Attendance
+                        </button>
+                      )}
+
 
                     </div>
                   </td>
