@@ -242,18 +242,26 @@ function TutorBatches() {
 
 
   `;
+/* ---------------- FETCH DATA ---------------- */
+const fetchBatches = useCallback(async () => {
+  try {
+    const res = await API.get(`/employee/${user.id}/batches`);
 
-  /* ---------------- FETCH DATA ---------------- */
-  const fetchBatches = useCallback(async () => {
-    try {
-      const res = await API.get(`/employee/${user.id}/batches`);
-      setBatches(res.data || []);
-    } catch {
-      setError("Failed to load batches");
-    } finally {
-      setLoading(false);
-    }
-  }, [user.id]);
+    // ✅ Sort batches by start time
+    const sorted = (res.data || []).sort((a, b) =>
+      a.startTime.localeCompare(b.startTime)
+    );
+
+    // ✅ Set sorted batches
+    setBatches(sorted);
+
+  } catch {
+    setError("Failed to load batches");
+  } finally {
+    setLoading(false);
+  }
+}, [user.id]);
+
 
   const fetchStudents = async (batchId) => {
     try {
