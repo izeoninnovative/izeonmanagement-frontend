@@ -497,9 +497,9 @@ function EmployeeAttendance() {
 
   const labelMonthYear = selectedMonth
     ? new Date(`${selectedMonth}-01`).toLocaleString("en-US", {
-        month: "long",
-        year: "numeric",
-      })
+      month: "long",
+      year: "numeric",
+    })
     : "";
 
   /* ================= LOADING ================= */
@@ -597,13 +597,13 @@ function EmployeeAttendance() {
                         <td>{a.lunchCheckIn || "—"}</td>
                         <td>{a.eveningCheckOut || "—"}</td>
                         <td>
-                          <span
-                            className={
-                              "badge-approved" 
-                            }
-                          >
-                            {done ? "Completed" : "Present"}
-                          </span>
+                          {done ? (
+                            <span className="badge-approved">Completed</span>
+                          ) : a.morningCheckIn || a.lunchCheckOut || a.lunchCheckIn || a.eveningCheckOut ? (
+                            <span className="badge-pending">Present</span>
+                          ) : (
+                            <span className="badge-rejected">Absent</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -771,8 +771,8 @@ function EmployeeAttendance() {
                             r.status === "APPROVED"
                               ? "badge-approved"
                               : r.status === "REJECTED"
-                              ? "badge-rejected"
-                              : "badge-pending"
+                                ? "badge-rejected"
+                                : "badge-pending"
                           }
                         >
                           {r.status}
