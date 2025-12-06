@@ -242,25 +242,25 @@ function TutorBatches() {
 
 
   `;
-/* ---------------- FETCH DATA ---------------- */
-const fetchBatches = useCallback(async () => {
-  try {
-    const res = await API.get(`/employee/${user.id}/batches`);
+  /* ---------------- FETCH DATA ---------------- */
+  const fetchBatches = useCallback(async () => {
+    try {
+      const res = await API.get(`/employee/${user.id}/batches`);
 
-    // ✅ Sort batches by start time
-    const sorted = (res.data || []).sort((a, b) =>
-      a.startTime.localeCompare(b.startTime)
-    );
+      // ✅ Sort batches by start time
+      const sorted = (res.data || []).sort((a, b) =>
+        a.startTime.localeCompare(b.startTime)
+      );
 
-    // ✅ Set sorted batches
-    setBatches(sorted);
+      // ✅ Set sorted batches
+      setBatches(sorted);
 
-  } catch {
-    setError("Failed to load batches");
-  } finally {
-    setLoading(false);
-  }
-}, [user.id]);
+    } catch {
+      setError("Failed to load batches");
+    } finally {
+      setLoading(false);
+    }
+  }, [user.id]);
 
 
   const fetchStudents = async (batchId) => {
@@ -386,85 +386,89 @@ const fetchBatches = useCallback(async () => {
           )}
 
           {batches.map((b) => (
-            <tr key={b.id}>
-              <td>{b.name}</td>
-              <td>{b.startTime?.slice(0, 5)} — {b.endTime?.slice(0, 5)}</td>
+            <React.Fragment key={b.id}>
+              <tr>
+                <td>{b.name}</td>
+                <td>
+                  {b.startTime?.slice(0, 5)} — {b.endTime?.slice(0, 5)}
+                </td>
 
-              <td>
-                <span className="student-count">
-                  {String(b?.students?.length || 0).padStart(2, "0")}
-                </span>
-              </td>
+                <td>
+                  <span className="student-count">
+                    {String(b?.students?.length || 0).padStart(2, "0")}
+                  </span>
+                </td>
 
-              <td className="text-nowrap">
-                <button
-                  className="action-view me-2"
-                  onClick={() => toggleExpand(b.id)}
-                >
-                  {expanded === b.id ? "Hide" : "View"}
-                </button>
+                <td className="text-nowrap">
+                  {/* VIEW BUTTON → Expand/Collapse */}
+                  <button
+                    className="action-view me-2"
+                    onClick={() => toggleExpand(b.id)}
+                  >
+                    {expanded === b.id ? "Hide" : "View"}
+                  </button>
 
-                <button
-                  className="action-message me-2"
-                  onClick={() => openMsgModal(b)}
-                >
-                  Message All
-                </button>
+                  {/* MESSAGE ALL */}
+                  <button
+                    className="action-message me-2"
+                    onClick={() => openMsgModal(b)}
+                  >
+                    Message All
+                  </button>
 
-                <button
-                  className="action-assign"
-                  onClick={() => openTaskModal(b)}
-                >
-                  Assign Task
-                </button>
-              </td>
-            </tr>
-          ))}
+                  {/* ASSIGN TASK */}
+                  <button
+                    className="action-assign"
+                    onClick={() => openTaskModal(b)}
+                  >
+                    Assign Task
+                  </button>
+                </td>
+              </tr>
 
-          {batches.map(
-            (b) =>
-              expanded === b.id && (
-                <tr key={`exp-${b.id}`}>
-                  <td colSpan="4" className="p-0 bg-light">
-                    <Collapse in={expanded === b.id}>
-                      <div className="p-3">
-                        <h5 className="fw-bold mb-3">
-                          {b.name} — Students
-                        </h5>
+              {/* COLLAPSIBLE STUDENT VIEW (Admin Style – No Gap) */}
+{expanded === b.id && (
+  <tr className="bg-light">
+    <td colSpan="4" className="p-0">
+      <Collapse in={expanded === b.id} appear>
+        <div className="p-3">
+          <h5 className="fw-bold mb-3">{b.name} — Students</h5>
 
-                        {students[b.id]?.length > 0 ? (
-                          <Card className="shadow-sm">
-                            <Table bordered size="sm" className="inner-table m-0">
-                              <thead>
-                                <tr>
-                                  <th>ID</th>
-                                  <th>Name</th>
-                                  <th>Email</th>
-                                  <th>Contact</th>
-                                </tr>
-                              </thead>
+          {students[b.id]?.length > 0 ? (
+            <Card className="shadow-sm">
+              <Table bordered size="sm" className="inner-table m-0">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Contact</th>
+                  </tr>
+                </thead>
 
-                              <tbody>
-                                {students[b.id].map((s) => (
-                                  <tr key={s.id}>
-                                    <td>{s.id}</td>
-                                    <td>{s.name}</td>
-                                    <td>{s.email}</td>
-                                    <td>{s.contact}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </Table>
-                          </Card>
-                        ) : (
-                          <p className="text-muted">No students found.</p>
-                        )}
-                      </div>
-                    </Collapse>
-                  </td>
-                </tr>
-              )
+                <tbody>
+                  {students[b.id].map((s) => (
+                    <tr key={s.id}>
+                      <td>{s.id}</td>
+                      <td>{s.name}</td>
+                      <td>{s.email}</td>
+                      <td>{s.contact}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Card>
+          ) : (
+            <p className="text-muted">No students found.</p>
           )}
+        </div>
+      </Collapse>
+    </td>
+  </tr>
+)}
+
+            </React.Fragment>
+          ))}
         </tbody>
       </Table>
 

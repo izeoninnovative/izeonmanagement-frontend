@@ -179,6 +179,7 @@ function Sidebar({ role, onSelect }) {
 
   /* ------------------ STYLE STRING ------------------ */
   const style = `
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
     .sidebar-outer {
       padding: 10px;
       height: 100%;
@@ -214,10 +215,11 @@ function Sidebar({ role, onSelect }) {
       padding: 6px 12px;
       margin-bottom: 5px;
       font-size: 16px;
-      font-weight: 500;
+      font-weight: 400;
       color: #333 !important;
       border-radius: 8px;
       cursor: pointer;
+      font-family: 'Instrument Sans', sans-serif;
     }
 
     .sidebar-item svg {
