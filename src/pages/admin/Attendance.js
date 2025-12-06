@@ -27,7 +27,14 @@ function Attendance() {
     localStorage.getItem("att_sub_tab") || "attendance"
   );
 
-  /* Read URL param ( ?tab=students ) */
+  // Monthly filter states (Reports-like filter box)
+  const [empIdFilter, setEmpIdFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState(new Date().getFullYear());
+
+  /* --------------------------------------------
+     READ URL PARAM (?tab=students / employees)
+  -------------------------------------------- */
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tab = params.get("tab");
@@ -48,7 +55,7 @@ function Attendance() {
   }, [location.search]);
 
   /* --------------------------------------------
-     LOAD DAILY ATTENDANCE
+     LOAD DAILY ATTENDANCE (BY DATE)
   -------------------------------------------- */
   const fetchAttendance = async (date) => {
     try {
@@ -96,15 +103,68 @@ function Attendance() {
   }, [selectedDate]);
 
   /* --------------------------------------------
-     HOURS CALC
+     MONTHLY EMPLOYEE ATTENDANCE FILTER
+  -------------------------------------------- */
+  const handleMonthAttendanceSearch = async () => {
+    if (!empIdFilter || !monthFilter || !yearFilter) {
+      alert("Please enter Employee ID, Month, and Year.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await API.get(
+        `/admin/attendance/employee/${empIdFilter}/month`,
+        {
+          params: {
+            month: monthFilter,
+            year: yearFilter,
+          },
+        }
+      );
+
+      const list = Array.isArray(res.data) ? res.data : [];
+
+      // Replace only employees list; keep current student attendance
+      setAttendance((prev) => ({
+        employees: list,
+        students: prev.students,
+      }));
+    } catch (err) {
+      console.error("Failed to fetch monthly attendance:", err);
+      alert("Failed to fetch monthly attendance.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* --------------------------------------------
+     HOURS CALC (HH:MM)
   -------------------------------------------- */
   const calculateHours = (a) => {
     if (!a.morningCheckIn || !a.eveningCheckOut) return "—";
+
     try {
       const inTime = new Date(`1970-01-01T${a.morningCheckIn}`);
       const outTime = new Date(`1970-01-01T${a.eveningCheckOut}`);
-      const diff = (outTime - inTime) / 3600000 - 1; // minus 1 hr break
-      return diff > 0 ? `${diff.toFixed(1)} hrs` : "—";
+
+      let lunchBreak = 0;
+      if (a.lunchCheckOut && a.lunchCheckIn) {
+        const lunchOut = new Date(`1970-01-01T${a.lunchCheckOut}`);
+        const lunchIn = new Date(`1970-01-01T${a.lunchCheckIn}`);
+        lunchBreak = (lunchIn - lunchOut) / 3600000;
+      }
+
+      let totalHours = (outTime - inTime) / 3600000 - lunchBreak;
+      if (totalHours <= 0) return "—";
+
+      const hrs = Math.floor(totalHours);
+      const mins = Math.round((totalHours - hrs) * 60);
+
+      const hh = String(hrs).padStart(2, "0");
+      const mm = String(mins).padStart(2, "0");
+
+      return `${hh}:${mm}`;
     } catch {
       return "—";
     }
@@ -122,6 +182,9 @@ function Attendance() {
     return map[type] || "status-progress";
   };
 
+  /* --------------------------------------------
+     LOADING
+  -------------------------------------------- */
   if (loading)
     return (
       <div
@@ -134,162 +197,187 @@ function Attendance() {
 
   return (
     <div className="p-3">
-
       {/* ==================== GLOBAL STYLES  ==================== */}
       <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Salsa&display=swap');
-      @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Salsa&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
 
-      * {
-        font-family: 'Instrument Sans', sans-serif;
-      }
-
-      .att-title {
-        font-size: 34px;
-        font-weight: 700;
-        font-family: 'Salsa', cursive;
-        text-align: center;
-        margin-bottom: 22px;
-      }
-
-      /* Date Input */
-      .date-input {
-        width: 260px;
-        height: 48px;
-        border-radius: 12px;
-        border: 1.6px solid #000;
-        padding: 8px 14px;
-        font-size: 16px;
-      }
-
-      @media (max-width: 576px) {
-        .date-input {
-          width: 100%;
+        * {
+          font-family: 'Instrument Sans', sans-serif;
         }
-      }
 
-      /* MAIN TABS */
-      .main-tabs {
-        margin-top: 14px;
-        display: flex;
-        border-radius: 14px;
-        border: 1.6px solid #000;
-        overflow: hidden;
-      }
-      .main-tab {
-        flex: 1;
-        padding: 10px 0;
-        text-align: center;
-        cursor: pointer;
-        font-weight: 600;
-        background: #fff;
-        border: none;
-        font-size: 16px;
-        font-family:'Salsa', cursive;
-        border-radius:12px;
-      }
-      .main-tab.active {
-        background: #136CED;
-        color: #fff;
-      }
+        .att-title {
+          font-size: 34px;
+          font-weight: 700;
+          font-family: 'Salsa', cursive;
+          text-align: center;
+          margin-bottom: 22px;
+        }
 
-      /* SUB TABS */
-      .sub-tabs {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 22px;
-      }
-      .sub-btn {
-        padding: 12px 28px;
-        border-radius: 10px;
-        border: 1px solid #E0E0E0;
-        background: #fff;
-        font-weight: 500;
-        cursor: pointer;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.25);
-      }
-      .sub-btn.active {
-        color: #136CED;
-        background: #fff;
-      }
+        /* Date Input */
+        .date-input {
+          width: 260px;
+          height: 48px;
+          border-radius: 12px;
+          border: 1.6px solid #000;
+          padding: 8px 14px;
+          font-size: 16px;
+        }
 
-      @media (max-width: 576px) {
+        @media (max-width: 576px) {
+          .date-input {
+            width: 100%;
+          }
+        }
+
+        /* MAIN TABS */
+        .main-tabs {
+          margin-top: 14px;
+          display: flex;
+          border-radius: 14px;
+          border: 1.6px solid #000;
+          overflow: hidden;
+        }
+        .main-tab {
+          flex: 1;
+          padding: 10px 0;
+          text-align: center;
+          cursor: pointer;
+          font-weight: 600;
+          background: #fff;
+          border: none;
+          font-size: 16px;
+          font-family: 'Salsa', cursive;
+          border-radius: 12px;
+        }
+        .main-tab.active {
+          background: #136CED;
+          color: #fff;
+        }
+
+        /* SUB TABS */
         .sub-tabs {
-          flex-direction: column;
-          gap: 10px;
+          display: flex;
+          justify-content: space-between;
+          margin-top: 22px;
         }
         .sub-btn {
-          width: 100%;
+          padding: 12px 28px;
+          border-radius: 10px;
+          border: 1px solid #E0E0E0;
+          background: #fff;
+          font-weight: 500;
+          cursor: pointer;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.25);
         }
-      }
+        .sub-btn.active {
+          color: #136CED;
+          background: #fff;
+        }
 
-      /* TABLE OUTER WRAPPER (for mobile scrolling) */
-      .table-wrap {
-        margin-top: 24px;
-        border: 2px solid #000;
-        border-radius: 16px;
-        overflow-x: auto;
-      }
+        @media (max-width: 576px) {
+          .sub-tabs {
+            flex-direction: column;
+            gap: 10px;
+          }
+          .sub-btn {
+            width: 100%;
+          }
+        }
 
-      table.att-table {
-        width: 100%;
-        min-width: 750px;
-        border-collapse: collapse;
-      }
+        /* FILTER BOX (same style as Reports.jsx) */
+        .filter-box {
+          border: 2px solid #2D68FE;
+          border-radius: 20px;
+          padding: 25px;
+          background: #fff;
+          margin-top: 15px;
+          margin-bottom: 25px;
+        }
 
-      .att-table thead th {
-        background: #136CED;
-        padding: 12px;
-        text-align: center;
-        color: #fff;
-        border: 1px solid #000;
-        font-weight: 600;
-        font-size: 15px;
-        font-family: 'Salsa', cursive;
-      }
+        .filter-label {
+          font-weight: 600;
+          font-family: 'Salsa', cursive;
+        }
 
-      .att-table tbody td {
-        padding: 13px;
-        text-align: center;
-        border: 1px solid #000;
-        font-size: 14px;
-      }
+        .btn-search {
+          background: #34C759;
+          padding: 12px 20px;
+          border: none;
+          border-radius: 10px;
+          color: #fff;
+          font-weight: 600;
+          cursor: pointer;
+          width: 100%;
+          font-family: 'Salsa', cursive;
+        }
 
-      /* STATUS PILLS */
-      .status-pill {
-        padding: 6px 14px;
-        border-radius: 8px;
-        color: #fff;
-        font-size: 13px;
-        font-weight: 600;
-        display: inline-block;
-      }
-      .status-progress { background: #FFCC00; color: #000; }
-      .status-complete { background: #34C759; }
-      .status-absent { background: #FF383C; }
+        /* TABLE OUTER WRAPPER (for mobile scrolling) */
+        .table-wrap {
+          margin-top: 24px;
+          border: 2px solid #000;
+          border-radius: 16px;
+          overflow-x: auto;
+        }
 
-      /* VIEW BUTTON */
-      .view-btn {
-        padding: 7px 14px;
-        border-radius: 10px;
-        background: #8E8E93;
-        border: none;
-        color: white;
-        font-size: 12px;
-        font-weight: 600;
-      }
+        table.att-table {
+          width: 100%;
+          min-width: 750px;
+          border-collapse: collapse;
+        }
 
-      .fix-btn {
-        padding: 6px 12px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 12px;
-        color: white;
-        border: none;
-      }
-      .approve-btn { background: #34C759; }
-      .reject-btn { background: #FF383C; }
+        .att-table thead th {
+          background: #136CED;
+          padding: 12px;
+          text-align: center;
+          color: #fff;
+          border: 1px solid #000;
+          font-weight: 600;
+          font-size: 15px;
+          font-family: 'Salsa', cursive;
+        }
 
+        .att-table tbody td {
+          padding: 13px;
+          text-align: center;
+          border: 1px solid #000;
+          font-size: 14px;
+        }
+
+        /* STATUS PILLS */
+        .status-pill {
+          padding: 6px 14px;
+          border-radius: 8px;
+          color: #fff;
+          font-size: 13px;
+          font-weight: 600;
+          display: inline-block;
+        }
+        .status-progress { background: #FFCC00; color: #000; }
+        .status-complete { background: #34C759; }
+        .status-absent { background: #FF383C; }
+
+        /* VIEW BUTTON */
+        .view-btn {
+          padding: 7px 14px;
+          border-radius: 10px;
+          background: #8E8E93;
+          border: none;
+          color: white;
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .fix-btn {
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 12px;
+          color: white;
+          border: none;
+        }
+        .approve-btn { background: #34C759; }
+        .reject-btn { background: #FF383C; }
       `}</style>
 
       {/* ========== HEADER ========== */}
@@ -333,7 +421,9 @@ function Attendance() {
           {/* SUB TABS */}
           <div className="sub-tabs">
             <button
-              className={`sub-btn ${activeSubTab === "attendance" ? "active" : ""}`}
+              className={`sub-btn ${
+                activeSubTab === "attendance" ? "active" : ""
+              }`}
               onClick={() => {
                 setActiveSubTab("attendance");
                 localStorage.setItem("att_sub_tab", "attendance");
@@ -352,6 +442,86 @@ function Attendance() {
               Fix Request
             </button>
           </div>
+
+          {/* MONTHLY FILTER BOX (only useful for Attendance sub-tab) */}
+          {activeSubTab === "attendance" && (
+            <div className="filter-box">
+              <div className="row gy-3">
+                <div className="col-md-4">
+                  <label className="filter-label">Employee ID</label>
+                  <input
+                    className="form-control"
+                    placeholder="Employee ID"
+                    value={empIdFilter}
+                    onChange={(e) => setEmpIdFilter(e.target.value)}
+                  />
+                </div>
+
+                <div className="col-md-4">
+                  <label className="filter-label">Month</label>
+                  <select
+                    className="form-select"
+                    value={monthFilter}
+                    onChange={(e) => setMonthFilter(e.target.value)}
+                  >
+                    <option value="">Select Month</option>
+                    {[
+                      "01",
+                      "02",
+                      "03",
+                      "04",
+                      "05",
+                      "06",
+                      "07",
+                      "08",
+                      "09",
+                      "10",
+                      "11",
+                      "12",
+                    ].map((m) => (
+                      <option key={m} value={m}>
+                        {
+                          [
+                            "January",
+                            "February",
+                            "March",
+                            "April",
+                            "May",
+                            "June",
+                            "July",
+                            "August",
+                            "September",
+                            "October",
+                            "November",
+                            "December",
+                          ][parseInt(m) - 1]
+                        }
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-md-4">
+                  <label className="filter-label">Year</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={yearFilter}
+                    onChange={(e) => setYearFilter(e.target.value)}
+                  />
+                </div>
+
+                <div className="col-md-4 d-flex align-items-end">
+                  <button
+                    className="btn-search"
+                    onClick={handleMonthAttendanceSearch}
+                  >
+                    Search
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* EMPLOYEE ATTENDANCE TABLE */}
           {activeSubTab === "attendance" && (
@@ -377,7 +547,7 @@ function Attendance() {
                       return (
                         <tr key={a.id}>
                           <td>{a.employeeId}</td>
-                          <td>{a.employeeName}</td>
+                          <td><strong>{a.employeeName}</strong> ({a.date})</td>
                           <td>{a.morningCheckIn || "—"}</td>
                           <td>{a.lunchCheckOut || "—"}</td>
                           <td>{a.lunchCheckIn || "—"}</td>
@@ -468,7 +638,9 @@ function Attendance() {
                               size="sm"
                               className="fix-btn approve-btn me-2"
                               disabled={req.status !== "PENDING"}
-                              onClick={() => handleFixAction(req.id, "approve")}
+                              onClick={() =>
+                                handleFixAction(req.id, "approve")
+                              }
                             >
                               Approve
                             </Button>
@@ -476,7 +648,9 @@ function Attendance() {
                               size="sm"
                               className="fix-btn reject-btn"
                               disabled={req.status !== "PENDING"}
-                              onClick={() => handleFixAction(req.id, "reject")}
+                              onClick={() =>
+                                handleFixAction(req.id, "reject")
+                              }
                             >
                               Reject
                             </Button>

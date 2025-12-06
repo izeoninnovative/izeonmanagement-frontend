@@ -9,11 +9,10 @@ const StudentLayout = ({ children }) => {
   const { user } = useAuth();
   const [showSidebar, setShowSidebar] = useState(false);
 
-  const toggleSidebar = () => setShowSidebar(prev => !prev);
+  const toggleSidebar = () => setShowSidebar((prev) => !prev);
 
   return (
     <div className="student-layout-wrapper">
-
       <style>{`
         .student-layout-wrapper {
           width: 100%;
@@ -23,7 +22,6 @@ const StudentLayout = ({ children }) => {
           flex-direction: column;
         }
 
-        /* DESKTOP */
         .desktop-layout {
           display: flex;
           height: 100vh;
@@ -46,7 +44,6 @@ const StudentLayout = ({ children }) => {
           overflow-y: auto;
         }
 
-        /* MOBILE MAIN WRAPPER */
         .mobile-wrapper {
           max-width: 390px;
           min-height: 100vh;
@@ -58,9 +55,6 @@ const StudentLayout = ({ children }) => {
           overflow: hidden;
         }
 
-        
-
-        /* FIXED HAMBURGER */
         .mobile-hamburger {
           position: fixed;
           bottom: 18px;
@@ -78,62 +72,57 @@ const StudentLayout = ({ children }) => {
           cursor: pointer;
         }
 
-        /* HAMBURGER TO X ANIMATION */
-.hamburger-icon {
-  width: 28px;
-  height: 22px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  cursor: pointer;
-  transition: 0.3s ease-in-out;
-}
+        .hamburger-icon {
+          width: 28px;
+          height: 22px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          cursor: pointer;
+          transition: 0.3s ease-in-out;
+        }
 
-.hamburger-icon span {
-  display: block;
-  height: 3px;
-  background: #333;
-  border-radius: 4px;
-  transition: 0.3s ease-in-out;
-}
+        .hamburger-icon span {
+          display: block;
+          height: 3px;
+          background: #333;
+          border-radius: 4px;
+          transition: 0.3s ease-in-out;
+        }
 
-/* Transform to X */
-.hamburger-icon.active span:nth-child(1) {
-  transform: translateY(9px) rotate(45deg);
-}
+        .hamburger-icon.active span:nth-child(1) {
+          transform: translateY(9px) rotate(45deg);
+        }
 
-.hamburger-icon.active span:nth-child(2) {
-  opacity: 0;
-}
+        .hamburger-icon.active span:nth-child(2) {
+          opacity: 0;
+        }
 
-.hamburger-icon.active span:nth-child(3) {
-  transform: translateY(-9px) rotate(-45deg);
-}
- .mobile-sidebar-popup .sidebar-logo {
+        .hamburger-icon.active span:nth-child(3) {
+          transform: translateY(-9px) rotate(-45deg);
+        }
+
+        .mobile-sidebar-popup .sidebar-logo {
           display: none !important;
         }
-      
+
         @media (min-width: 992px) {
           .mobile-hamburger {
             display: none;
           }
+
           .mobile-logo-box {
-          background: #fff;
-          min-width: 150px;
-         
-          border-radius: 16px;
-          
-          
+            background: #fff;
+            min-width: 150px;
+            border-radius: 16px;
+          }
+
+          .sidebar-logo {
+            width: 100%;
+          }
         }
 
-        .sidebar-logo {
-          width: 100%;
-        
-        }
-        }
-
-        /* === CUSTOM MOBILE POPUP SIDEBAR === */
-         .mobile-sidebar-popup {
+        .mobile-sidebar-popup {
           position: fixed;
           width: 90%;
           max-width: 360px;
@@ -145,7 +134,7 @@ const StudentLayout = ({ children }) => {
           background: #fff;
           border-radius: 20px;
           box-shadow: 0px 4px 18px rgba(0,0,0,0.20);
-          z-index: 1;
+          z-index: 4000;
           overflow-y: auto;
         }
       `}</style>
@@ -155,19 +144,15 @@ const StudentLayout = ({ children }) => {
         <div className="sidebar-container" style={{ width: SIDEBAR_WIDTH }}>
           <Sidebar role={user?.role || "student"} />
         </div>
-
-        <div className="content-container">
-          {children}
-        </div>
+        <div className="content-container">{children}</div>
       </div>
 
-      {/* MOBILE MAIN */}
+      {/* MOBILE */}
       <div className="d-lg-none">
         <div className="mobile-wrapper">
           <div className="mobile-logo-box mx-2">
             <img src={IzeonLogo} className="sidebar-logo" alt="Izeon Logo" />
           </div>
-
           {children}
         </div>
       </div>
@@ -181,16 +166,12 @@ const StudentLayout = ({ children }) => {
         </div>
       </div>
 
-      {/* POPUP SIDEBAR */}
+      {/* MOBILE POPUP SIDEBAR */}
       {showSidebar && (
         <div className="mobile-sidebar-popup d-lg-none">
-          <Sidebar
-            role={user?.role || "student"}
-            onSelect={toggleSidebar}
-          />
+          <Sidebar role={user?.role || "student"} onSelect={toggleSidebar} />
         </div>
       )}
-
     </div>
   );
 };

@@ -8,9 +8,9 @@ function Feedback() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ---------------------------
-  // FETCH FEEDBACKS
-  // ---------------------------
+  /* ----------------------------------------
+      FETCH FEEDBACKS
+  ---------------------------------------- */
   const fetchFeedbacks = async () => {
     try {
       const res = await API.get("/admin/feedbacks");
@@ -26,10 +26,29 @@ function Feedback() {
     fetchFeedbacks();
   }, []);
 
-  // ---------------------------
-  // LOADING
-  // ---------------------------
-  if (loading)
+  /* ----------------------------------------
+      TIMESTAMP FIX — FORCE IST (+5.5 HOURS)
+  ---------------------------------------- */
+  const formatIST = (value) => {
+    if (!value) return "—";
+
+    const utc = new Date(value);
+    const ist = new Date(utc.getTime() + 5.5 * 60 * 60 * 1000);
+
+    return ist.toLocaleString("en-IN", {
+      year: "2-digit",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
+  /* ----------------------------------------
+      LOADING UI
+  ---------------------------------------- */
+  if (loading) {
     return (
       <div
         className="d-flex justify-content-center align-items-center"
@@ -38,10 +57,10 @@ function Feedback() {
         <Spinner animation="border" variant="primary" />
       </div>
     );
+  }
 
   return (
     <div className="p-3">
-
       {/* ------------ INTERNAL STYLING ------------ */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Salsa&display=swap');
@@ -64,8 +83,6 @@ function Feedback() {
           border-radius: 14px;
           width: 100%;
           background: #fff;
-
-          /* ENABLE HORIZONTAL OVERFLOW ON MOBILE */
           overflow-x: auto;
           overflow-y: hidden;
           -webkit-overflow-scrolling: touch;
@@ -73,7 +90,7 @@ function Feedback() {
 
         table.feedback-table {
           width: 100%;
-          min-width: 650px; /* important for mobile horizontal scroll */
+          min-width: 650px;
           border-collapse: collapse;
         }
 
@@ -93,8 +110,8 @@ function Feedback() {
           padding: 14px;
           border: 1px solid #000;
           font-size: 16px;
-          vertical-align: middle;
           text-align: center;
+          vertical-align: middle;
         }
 
         .feedback-text {
@@ -116,12 +133,12 @@ function Feedback() {
         }
       `}</style>
 
-      {/* Title */}
+      {/* PAGE TITLE */}
       <h1 className="page-title">Student Feedbacks</h1>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      {/* TABLE */}
+      {/* FEEDBACK TABLE */}
       <div className="feedback-table-container">
         <table className="feedback-table">
           <thead>
@@ -144,11 +161,7 @@ function Feedback() {
                     <td>{fb.studentName || "Unknown"}</td>
                     <td>{fb.studentId || "—"}</td>
                     <td className="feedback-text">{fb.content || "—"}</td>
-                    <td>
-                      {fb.timestamp
-                        ? new Date(fb.timestamp).toLocaleString()
-                        : "—"}
-                    </td>
+                    <td>{formatIST(fb.timestamp)}</td>
                   </tr>
                 ))
             ) : (
@@ -161,7 +174,6 @@ function Feedback() {
           </tbody>
         </table>
       </div>
-
     </div>
   );
 }

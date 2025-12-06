@@ -17,7 +17,28 @@ function Messages() {
   });
 
   /* -------------------------------
-      FETCH MESSAGES
+         FORMAT DATETIME (IST)
+  --------------------------------*/
+  const formatDateTime = (value) => {
+  if (!value) return "—";
+
+  const original = new Date(value);
+
+  // 🔥 Manually shift by +5.5 hours (UTC → IST)
+  const istTime = new Date(original.getTime() + 5.5 * 60 * 60 * 1000);
+
+  return istTime.toLocaleString("en-IN", {
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
+
+  /* -------------------------------
+        FETCH MESSAGES
   --------------------------------*/
   const fetchMessages = useCallback(async () => {
     try {
@@ -29,7 +50,7 @@ function Messages() {
       setInbox(inboxRes.data || []);
       setSent(sentRes.data || []);
       setError(null);
-    } catch {
+    } catch (err) {
       setError("Failed to load messages");
     } finally {
       setLoading(false);
@@ -41,27 +62,36 @@ function Messages() {
   }, [fetchMessages]);
 
   /* -------------------------------
-      SEND MESSAGE
+        SEND MESSAGE FIXED
   --------------------------------*/
   const handleSend = async (e) => {
     e.preventDefault();
+
     try {
-      await API.post("/admin/message/send", {
-        senderRole: "ADMIN",
-        ...form,
-      });
+      let payload = {
+        subject: form.subject,
+        body: form.body,
+      };
+
+      if (form.receiverRole === "STUDENT") {
+        payload.studentReceiver = { id: form.receiverId };
+      } else if (form.receiverRole === "EMPLOYEE") {
+        payload.employeeReceiver = { id: form.receiverId };
+      }
+
+      await API.post("/admin/message/send", payload);
 
       alert("Message sent!");
       setForm({ receiverRole: "", receiverId: "", subject: "", body: "" });
       fetchMessages();
       setActive("sent");
-    } catch {
+    } catch (err) {
       alert("Failed to send message");
     }
   };
 
   /* -------------------------------
-      MARK AS READ
+        MARK AS READ
   --------------------------------*/
   const markAsRead = async (id) => {
     try {
@@ -71,7 +101,7 @@ function Messages() {
   };
 
   /* -------------------------------
-      LOADING
+        LOADING UI
   --------------------------------*/
   if (loading)
     return (
@@ -81,7 +111,7 @@ function Messages() {
     );
 
   /* -------------------------------
-      REUSABLE TABLE RENDER
+        TABLE UI
   --------------------------------*/
   const renderTable = (rows, type) => (
     <Table bordered hover style={styles.table} className="d-none d-md-table">
@@ -107,9 +137,7 @@ function Messages() {
                 </td>
                 <td style={styles.td}>{m.subject}</td>
                 <td style={{ ...styles.td, textAlign: "left" }}>{m.body}</td>
-                <td style={styles.td}>
-                  {new Date(m.sentAt).toLocaleString()}
-                </td>
+                <td style={styles.td}>{formatDateTime(m.sentAt)}</td>
 
                 {type === "inbox" && (
                   <td style={styles.td}>
@@ -138,6 +166,9 @@ function Messages() {
     </Table>
   );
 
+  /* -------------------------------
+        MOBILE TABLE
+  --------------------------------*/
   const renderMobileTable = (rows, type) => (
     <div className="d-md-none" style={styles.mobileCard}>
       <table style={styles.mobileTable}>
@@ -170,33 +201,25 @@ function Messages() {
   );
 
   /* -------------------------------
-      MAIN RENDER
+        MAIN UI
   --------------------------------*/
   return (
     <div style={{ padding: "20px" }}>
-    <style>{`
-  @import url('https://fonts.googleapis.com/css2?family=Salsa&display=swap');
-  @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Salsa&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
 
-  * {
-    font-family: 'Instrument Sans', sans-serif !important;
-  }
+        * {
+          font-family: 'Instrument Sans', sans-serif !important;
+        }
+        .salsa {
+          font-family: 'Salsa', cursive !important;
+        }
+      `}</style>
 
-  .salsa {
-    font-family: 'Salsa', cursive !important;
-  }
-
-  .send-form-btn{
-    display: flex;
-    justify-content: center;
-  }
-  .send-form-btn-mobile{
-    display: flex;
-    justify-content: end;
-  }
-`}</style>
-
-      <h1 style={styles.title} className="salsa">Messages</h1>
+      <h1 style={styles.title} className="salsa">
+        Messages
+      </h1>
 
       {/* MOBILE TABS */}
       <div className="d-md-none" style={styles.mobileTabs}>
@@ -214,16 +237,16 @@ function Messages() {
         ))}
       </div>
 
-      {/* MOBILE SEND MESSAGE */}
+      {/* MOBILE SEND */}
       <div className="d-md-none" style={styles.sendBox}>
         <button style={styles.sendBtnMobile} onClick={() => setActive("send")}>
-          Send Message ➤
+          ➤ Send Message
         </button>
       </div>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      {/* ------------------- DESKTOP VIEW ------------------- */}
+      {/* DESKTOP VIEW */}
       <div className="msg-main-box d-none d-md-flex" style={styles.desktopBox}>
         <div style={styles.sidebar}>
           <button
@@ -260,7 +283,7 @@ function Messages() {
         <div style={styles.desktopContent}>
           <h2 style={styles.sectionTitle} className="salsa">
             {active === "inbox"
-              ? "Inbox Message"
+              ? "Inbox Messages"
               : active === "sent"
               ? "Sent Messages"
               : "Send Message"}
@@ -308,7 +331,7 @@ function Messages() {
                 />
               </Form.Group>
 
-              <Form.Group>
+              <Form.Group className="mb-3">
                 <Form.Label>Message</Form.Label>
                 <Form.Control
                   as="textarea"
@@ -321,21 +344,26 @@ function Messages() {
                 />
               </Form.Group>
 
-              <div className="send-form-btn">
-          <Button type="submit" style={styles.sendSubmitBtn}>
-            Send
-          </Button>
-          </div>
+              <div className="d-flex justify-content-center">
+                <Button type="submit" style={styles.sendSubmitBtn}>
+                  Send
+                </Button>
+              </div>
             </Form>
           )}
         </div>
       </div>
 
-      {/* ------------------- MOBILE VIEW ------------------- */}
+      {/* MOBILE VIEW */}
       {active === "inbox" && renderMobileTable(inbox, "inbox")}
       {active === "sent" && renderMobileTable(sent, "sent")}
+
       {active === "send" && (
-        <Form onSubmit={handleSend} className="d-md-none" style={styles.mobileSendForm}>
+        <Form
+          onSubmit={handleSend}
+          className="d-md-none"
+          style={styles.mobileSendForm}
+        >
           <Form.Group className="mb-2">
             <Form.Label>Receiver Role</Form.Label>
             <Form.Select
@@ -381,10 +409,11 @@ function Messages() {
               }
             />
           </Form.Group>
-          <div className="send-form-btn-mobile">
-          <Button type="submit" style={styles.sendSubmitBtn}>
-            Send
-          </Button>
+
+          <div className="d-flex justify-content-end">
+            <Button type="submit" style={styles.sendSubmitBtn}>
+              Send
+            </Button>
           </div>
         </Form>
       )}
@@ -404,14 +433,12 @@ const styles = {
   },
 
   title: {
-    fontFamily: "Salsa",
     fontSize: "34px",
     fontWeight: "700",
     textAlign: "center",
     marginBottom: 20,
   },
 
-  /* DESKTOP */
   desktopBox: {
     width: "100%",
     height: "80vh",
@@ -432,16 +459,13 @@ const styles = {
     background: "transparent",
     border: "none",
     textAlign: "left",
-    fontWeight: 400,
     fontSize: 18,
     borderRadius: 8,
-    
   },
 
   sidebarActive: {
     background: "#fff",
     border: "2px solid #000",
-   
   },
 
   desktopContent: {
@@ -451,34 +475,28 @@ const styles = {
   },
 
   sectionTitle: {
-    fontWeight: 700,
     fontSize: 26,
+    fontWeight: 700,
     textAlign: "center",
     marginBottom: 20,
   },
 
-  /* TABLE */
   table: { marginTop: 10 },
+
   th: {
     background: "#136CED",
     color: "#fff",
     fontWeight: 700,
     textAlign: "center",
-    fontFamily: "Salsa",
   },
-  td: {
-    textAlign: "center",
-    fontWeight: 300,
-  },
-  noMsg: {
-    textAlign: "center",
-    padding: 20,
-  },
+
+  td: { textAlign: "center", fontWeight: 300 },
+
+  noMsg: { textAlign: "center", padding: 20 },
 
   readBtn: {
     background: "#34C759",
     padding: "5px 12px",
-    border: "none",
     borderRadius: 8,
     color: "#fff",
   },
@@ -486,12 +504,10 @@ const styles = {
   markReadBtn: {
     background: "#FFCC00",
     padding: "5px 12px",
-    border: "none",
     borderRadius: 8,
     fontWeight: 700,
   },
 
-  /* SEND FORM */
   sendForm: {
     border: "2px solid #000",
     padding: 20,
@@ -505,8 +521,6 @@ const styles = {
     border: "none",
     padding: "10px 20px",
     borderRadius: 8,
-    display: "flex",
-    alignItems:"end"
   },
 
   /* MOBILE */
@@ -528,8 +542,7 @@ const styles = {
   mobileTabActive: {
     background: "#136CED",
     color: "#fff",
-    borderColor: "#136CED",
-    border:"none"
+    border: "none",
   },
 
   sendBox: {
@@ -542,7 +555,6 @@ const styles = {
     padding: "10px 18px",
     borderRadius: 10,
     border: "1px solid #000",
-    background: "#fff",
     fontWeight: 600,
   },
 
@@ -553,22 +565,17 @@ const styles = {
     marginTop: 10,
   },
 
-  mobileTable: {
-    width: "100%",
-  },
+  mobileTable: { width: "100%" },
 
   mobileTh: {
     background: "#136CED",
     color: "#fff",
     padding: 6,
-    fontWeight: 500,
     border: "1px solid #000",
-  
   },
 
   mobileTd: {
     padding: 6,
-    fontWeight: 500,
     border: "1px solid #000",
   },
 
@@ -576,7 +583,7 @@ const styles = {
     border: "2px solid #000",
     borderRadius: 14,
     padding: 15,
-    
+    marginTop: 10,
   },
 };
 

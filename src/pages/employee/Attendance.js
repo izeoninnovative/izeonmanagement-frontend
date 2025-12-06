@@ -215,7 +215,7 @@ function EmployeeAttendance() {
           disabled={allDisabled || morningDone}
           onClick={() => markAttendance("MORNING_IN")}
         >
-          Check-in
+          Log-in
         </Button>
 
         <Button
@@ -223,7 +223,7 @@ function EmployeeAttendance() {
           disabled={allDisabled || !morningDone || lunchOutDone}
           onClick={() => markAttendance("LUNCH_OUT")}
         >
-          Lunch-Out
+          Lunch-In
         </Button>
 
         <Button
@@ -231,7 +231,7 @@ function EmployeeAttendance() {
           disabled={allDisabled || !lunchOutDone || lunchInDone}
           onClick={() => markAttendance("LUNCH_IN")}
         >
-          Lunch-in
+          Lunch-Out
         </Button>
 
         <Button
@@ -574,8 +574,8 @@ function EmployeeAttendance() {
                 <tr>
                   <th>Date</th>
                   <th>Morning</th>
-                  <th>Lunch Out</th>
                   <th>Lunch In</th>
+                  <th>Lunch Out</th>
                   <th>Logout</th>
                   <th>Status</th>
                 </tr>

@@ -1,3 +1,4 @@
+// src/pages/student/StudentMessages.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { Table, Button, Form, Spinner, Alert } from "react-bootstrap";
 import API from "../../api/api";
@@ -19,9 +20,26 @@ function StudentMessages() {
     body: "",
   });
 
-  /* -------------------------------
-      FETCH MESSAGES
-  --------------------------------*/
+  /* -----------------------------------
+        FORMAT IST TIME
+  ----------------------------------- */
+  const formatIST = (value) => {
+    if (!value) return "—";
+    const utc = new Date(value);
+    const ist = new Date(utc.getTime() + 5.5 * 3600 * 1000);
+    return ist.toLocaleString("en-IN", {
+      year: "2-digit",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
+  /* -----------------------------------
+        FETCH MESSAGES
+  ----------------------------------- */
   const fetchMessages = useCallback(async () => {
     try {
       const [inboxRes, sentRes] = await Promise.all([
@@ -43,9 +61,9 @@ function StudentMessages() {
     fetchMessages();
   }, [fetchMessages]);
 
-  /* -------------------------------
-      SEND MESSAGE
-  --------------------------------*/
+  /* -----------------------------------
+        SEND MESSAGE
+  ----------------------------------- */
   const handleSend = async (e) => {
     e.preventDefault();
 
@@ -57,8 +75,9 @@ function StudentMessages() {
       return;
     }
 
-    if (receiverRole === "STUDENT" && receiverId === user.id.toUpperCase()) {
-      alert("You cannot send message to yourself.");
+    // Prevent sending to self
+    if (receiverRole === "STUDENT" && receiverId === user.id) {
+      alert("You cannot send a message to yourself.");
       return;
     }
 
@@ -68,7 +87,7 @@ function StudentMessages() {
     };
 
     if (receiverRole === "ADMIN") {
-      payload.adminReceiver = { id: "A001" };
+      payload.AdminReceiver = "A001"; // IMPORTANT
     } else if (receiverRole === "TUTOR") {
       payload.employeeReceiver = { id: receiverId };
     } else if (receiverRole === "STUDENT") {
@@ -77,8 +96,8 @@ function StudentMessages() {
 
     try {
       await API.post(`/student/${user.id}/message/send`, payload);
-      alert("Message sent!");
 
+      alert("Message sent!");
       setForm({ receiverRole: "", receiverId: "", subject: "", body: "" });
       fetchMessages();
       setActive("sent");
@@ -87,9 +106,9 @@ function StudentMessages() {
     }
   };
 
-  /* -------------------------------
-      MARK AS READ
-  --------------------------------*/
+  /* -----------------------------------
+        MARK AS READ
+  ----------------------------------- */
   const markAsRead = async (id) => {
     try {
       await API.put(`/student/${user.id}/messages/${id}/read`);
@@ -97,9 +116,9 @@ function StudentMessages() {
     } catch {}
   };
 
-  /* -------------------------------
-      LOADING
-  --------------------------------*/
+  /* -----------------------------------
+        LOADING SCREEN
+  ----------------------------------- */
   if (loading)
     return (
       <div style={styles.loader}>
@@ -107,9 +126,9 @@ function StudentMessages() {
       </div>
     );
 
-  /* -------------------------------
-      DESKTOP TABLE
-  --------------------------------*/
+  /* -----------------------------------
+        DESKTOP TABLE
+  ----------------------------------- */
   const renderTable = (rows, type) => (
     <Table bordered hover style={styles.table} className="d-none d-md-table">
       <thead>
@@ -126,7 +145,9 @@ function StudentMessages() {
       <tbody>
         {rows.length ? (
           rows
-            .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
+            .sort((a, b) =>
+              a.sentAt && b.sentAt ? new Date(b.sentAt) - new Date(a.sentAt) : 0
+            )
             .map((m) => (
               <tr key={m.id}>
                 <td style={styles.td}>
@@ -134,7 +155,7 @@ function StudentMessages() {
                 </td>
                 <td style={styles.td}>{m.subject}</td>
                 <td style={{ ...styles.td, textAlign: "left" }}>{m.body}</td>
-                <td style={styles.td}>{new Date(m.sentAt).toLocaleString()}</td>
+                <td style={styles.td}>{formatIST(m.sentAt)}</td>
 
                 {type === "inbox" && (
                   <td style={styles.td}>
@@ -163,9 +184,9 @@ function StudentMessages() {
     </Table>
   );
 
-  /* -------------------------------
-      MOBILE TABLE
-  --------------------------------*/
+  /* -----------------------------------
+        MOBILE TABLE
+  ----------------------------------- */
   const renderMobileTable = (rows, type) => (
     <div className="d-md-none" style={styles.mobileCard}>
       <table style={styles.mobileTable}>
@@ -197,21 +218,17 @@ function StudentMessages() {
     </div>
   );
 
-  /* -------------------------------
-      MAIN RETURN
-  --------------------------------*/
+  /* -----------------------------------
+        MAIN UI
+  ----------------------------------- */
   return (
     <div style={{ padding: "20px" }}>
+      {/* GOOGLE FONTS */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Salsa&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
-
-        * {
-          font-family: 'Instrument Sans', sans-serif !important;
-        }
-        .salsa {
-          font-family: 'Salsa', cursive !important;
-        }
+        * { font-family: 'Instrument Sans', sans-serif !important; }
+        .salsa { font-family: 'Salsa', cursive !important; }
       `}</style>
 
       <h1 style={styles.title} className="salsa">Messages</h1>
@@ -241,7 +258,7 @@ function StudentMessages() {
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      {/* DESKTOP MAIN UI */}
+      {/* DESKTOP LAYOUT */}
       <div className="msg-main-box d-none d-md-flex" style={styles.desktopBox}>
         {/* SIDEBAR */}
         <div style={styles.sidebar}>
@@ -289,7 +306,7 @@ function StudentMessages() {
           {active === "inbox" && renderTable(inbox, "inbox")}
           {active === "sent" && renderTable(sent, "sent")}
 
-          {/* SEND FORM (DESKTOP) */}
+          {/* SEND FORM */}
           {active === "send" && (
             <Form onSubmit={handleSend} style={styles.sendForm}>
               <Form.Group className="mb-3">
@@ -317,6 +334,11 @@ function StudentMessages() {
                 <Form.Group className="mb-3">
                   <Form.Label>Receiver ID</Form.Label>
                   <Form.Control
+                    placeholder={
+                      form.receiverRole === "TUTOR"
+                        ? "Tutor ID (E101)"
+                        : "Student ID (S101)"
+                    }
                     value={form.receiverId}
                     onChange={(e) =>
                       setForm({
@@ -372,11 +394,7 @@ function StudentMessages() {
 
       {/* MOBILE SEND FORM */}
       {active === "send" && (
-        <Form
-          onSubmit={handleSend}
-          className="d-md-none"
-          style={styles.mobileSendForm}
-        >
+        <Form onSubmit={handleSend} className="d-md-none" style={styles.mobileSendForm}>
           <Form.Group className="mb-2">
             <Form.Label>Receiver Role</Form.Label>
             <Form.Select
@@ -452,7 +470,9 @@ function StudentMessages() {
   );
 }
 
-/* ---- STYLES (SAME AS EMPLOYEE) ---- */
+/* -----------------------------------
+          STYLES
+----------------------------------- */
 const styles = {
   loader: {
     height: "70vh",
@@ -462,7 +482,6 @@ const styles = {
   },
 
   title: {
-    fontFamily: "Salsa",
     fontSize: "34px",
     fontWeight: "700",
     textAlign: "center",
@@ -512,6 +531,7 @@ const styles = {
   },
 
   table: { marginTop: 10 },
+
   th: {
     background: "#136CED",
     color: "#fff",
@@ -519,10 +539,12 @@ const styles = {
     textAlign: "center",
     fontFamily: "Salsa",
   },
+
   td: {
     textAlign: "center",
     fontWeight: 300,
   },
+
   noMsg: {
     textAlign: "center",
     padding: 20,
@@ -598,7 +620,9 @@ const styles = {
     marginTop: 10,
   },
 
-  mobileTable: { width: "100%" },
+  mobileTable: {
+    width: "100%",
+  },
 
   mobileTh: {
     background: "#136CED",

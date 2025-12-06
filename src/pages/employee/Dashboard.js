@@ -197,7 +197,7 @@ function EmployeeDashboard() {
     { title: "Attendance", value: summary.attendance, color: "blue" },
     { title: "Leaves Taken", value: summary.leaves, color: "red" },
     { title: "Messages", value: summary.messages, color: "green" },
-    { title: "Reports", value: summary.reports, color: "orange" },
+    { title: "Total Report", value: summary.reports, color: "orange" },
   ];
 
   if (user.subRole === "TUTOR") {

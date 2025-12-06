@@ -1,3 +1,4 @@
+// src/pages/employee/EmployeeMessages.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { Table, Button, Form, Spinner, Alert } from "react-bootstrap";
 import API from "../../api/api";
@@ -5,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 
 function EmployeeMessages() {
   const { user } = useAuth();
+
   const [inbox, setInbox] = useState([]);
   const [sent, setSent] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +19,29 @@ function EmployeeMessages() {
     subject: "",
     body: "",
   });
+
+  // employee with subRole = TUTOR
+  const isTutor = user?.role === "EMPLOYEE" && user?.subRole === "TUTOR";
+  const [tutorStudents, setTutorStudents] = useState([]);
+
+  /* -------------------------------
+      FORMAT IST (for timestamps)
+  --------------------------------*/
+  const formatIST = (value) => {
+    if (!value) return "—";
+
+    const utc = new Date(value);
+    const ist = new Date(utc.getTime() + 5.5 * 60 * 60 * 1000);
+
+    return ist.toLocaleString("en-IN", {
+      year: "2-digit",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
 
   /* -------------------------------
       FETCH MESSAGES
@@ -43,21 +68,81 @@ function EmployeeMessages() {
   }, [fetchMessages]);
 
   /* -------------------------------
+      LOAD TUTOR STUDENTS (FROM BATCHES)
+  --------------------------------*/
+  useEffect(() => {
+    const loadTutorStudents = async () => {
+      if (!isTutor) return;
+
+      try {
+        // assumes this returns employee with batches + students
+        const res = await API.get(`/employee/${user.id}`);
+        const emp = res.data || {};
+
+        let list = [];
+        (emp.batches || []).forEach((b) => {
+          (b.students || []).forEach((s) => list.push(s));
+        });
+
+        // unique by id
+        const unique = Array.from(new Map(list.map((s) => [s.id, s])).values());
+        setTutorStudents(unique);
+      } catch (err) {
+        console.error("Failed to load tutor students", err);
+      }
+    };
+
+    loadTutorStudents();
+  }, [user.id, isTutor]);
+
+  /* -------------------------------
       SEND MESSAGE
   --------------------------------*/
   const handleSend = async (e) => {
     e.preventDefault();
+
+    const { receiverRole, receiverId, subject, body } = form;
+
+    if (!receiverRole) {
+      alert("Please select a receiver role.");
+      return;
+    }
+
+    // Prevent sending message to self if EMPLOYEE
+    if (receiverRole === "EMPLOYEE" && receiverId === user.id) {
+      alert("You cannot send a message to yourself.");
+      return;
+    }
+
+    let payload = {
+      senderRole: "EMPLOYEE",
+      subject,
+      body,
+    };
+
+    if (receiverRole === "ADMIN") {
+      // Admin default is always A001 (flat field as per your sample)
+      payload.AdminReceiver = "A001";
+    } else if (receiverRole === "EMPLOYEE") {
+      payload.employeeReceiver = { id: receiverId };
+    } else if (receiverRole === "STUDENT") {
+      payload.studentReceiver = { id: receiverId };
+    }
+
     try {
-      await API.post(`/employee/${user.id}/message/send`, {
-        senderRole: "EMPLOYEE",
-        ...form,
-      });
+      await API.post(`/employee/${user.id}/message/send`, payload);
 
       alert("Message sent!");
-      setForm({ receiverRole: "", receiverId: "", subject: "", body: "" });
+      setForm({
+        receiverRole: "",
+        receiverId: "",
+        subject: "",
+        body: "",
+      });
       fetchMessages();
       setActive("sent");
-    } catch {
+    } catch (err) {
+      console.error(err);
       alert("Failed to send message");
     }
   };
@@ -69,7 +154,9 @@ function EmployeeMessages() {
     try {
       await API.put(`/employee/${user.id}/messages/${id}/read`);
       fetchMessages();
-    } catch {}
+    } catch {
+      // ignore
+    }
   };
 
   /* -------------------------------
@@ -101,7 +188,11 @@ function EmployeeMessages() {
       <tbody>
         {rows.length ? (
           rows
-            .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
+            .sort((a, b) =>
+              a.sentAt && b.sentAt
+                ? new Date(b.sentAt) - new Date(a.sentAt)
+                : 0
+            )
             .map((m) => (
               <tr key={m.id}>
                 <td style={styles.td}>
@@ -109,7 +200,7 @@ function EmployeeMessages() {
                 </td>
                 <td style={styles.td}>{m.subject}</td>
                 <td style={{ ...styles.td, textAlign: "left" }}>{m.body}</td>
-                <td style={styles.td}>{new Date(m.sentAt).toLocaleString()}</td>
+                <td style={styles.td}>{formatIST(m.sentAt)}</td>
 
                 {type === "inbox" && (
                   <td style={styles.td}>
@@ -188,19 +279,11 @@ function EmployeeMessages() {
         .salsa {
           font-family: 'Salsa', cursive !important;
         }
-        send-form-btn-mobile {
-          display: flex;
-          justify-content: center;
-          margin-top: 10px;
-        }
-        send-form-btn {
-          display: flex;
-          justify-content: center;
-          margin-top: 10px;
-        }
       `}</style>
 
-      <h1 style={styles.title} className="salsa">Messages</h1>
+      <h1 style={styles.title} className="salsa">
+        Messages
+      </h1>
 
       {/* MOBILE TABS */}
       <div className="d-md-none" style={styles.mobileTabs}>
@@ -282,27 +365,58 @@ function EmployeeMessages() {
                 <Form.Label>Receiver Role</Form.Label>
                 <Form.Select
                   value={form.receiverRole}
-                  onChange={(e) =>
-                    setForm({ ...form, receiverRole: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const role = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      receiverRole: role,
+                      receiverId: role === "ADMIN" ? "A001" : "",
+                    }));
+                  }}
                   required
                 >
                   <option value="">Select Role</option>
                   <option value="ADMIN">Admin</option>
                   <option value="EMPLOYEE">Employee</option>
+                  {isTutor && <option value="STUDENT">Student</option>}
                 </Form.Select>
               </Form.Group>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Receiver ID</Form.Label>
-                <Form.Control
-                  value={form.receiverId}
-                  onChange={(e) =>
-                    setForm({ ...form, receiverId: e.target.value })
-                  }
-                  required
-                />
-              </Form.Group>
+              {/* EMPLOYEE INPUT */}
+              {form.receiverRole === "EMPLOYEE" && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Employee ID</Form.Label>
+                  <Form.Control
+                    placeholder="Employee ID (e.g., E101)"
+                    value={form.receiverId}
+                    onChange={(e) =>
+                      setForm({ ...form, receiverId: e.target.value })
+                    }
+                    required
+                  />
+                </Form.Group>
+              )}
+
+              {/* STUDENT DROPDOWN (TUTOR ONLY) */}
+              {form.receiverRole === "STUDENT" && isTutor && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Select Student</Form.Label>
+                  <Form.Select
+                    value={form.receiverId}
+                    onChange={(e) =>
+                      setForm({ ...form, receiverId: e.target.value })
+                    }
+                    required
+                  >
+                    <option value="">Choose Student</option>
+                    {tutorStudents.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.id} — {s.name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              )}
 
               <Form.Group className="mb-3">
                 <Form.Label>Subject</Form.Label>
@@ -328,7 +442,7 @@ function EmployeeMessages() {
                 />
               </Form.Group>
 
-              <div className="send-form-btn">
+              <div style={{ display: "flex", justifyContent: "center" }}>
                 <Button type="submit" style={styles.sendSubmitBtn}>
                   Send
                 </Button>
@@ -349,25 +463,55 @@ function EmployeeMessages() {
             <Form.Label>Receiver Role</Form.Label>
             <Form.Select
               value={form.receiverRole}
-              onChange={(e) =>
-                setForm({ ...form, receiverRole: e.target.value })
-              }
+              onChange={(e) => {
+                const role = e.target.value;
+                setForm((prev) => ({
+                  ...prev,
+                  receiverRole: role,
+                  receiverId: role === "ADMIN" ? "A001" : "",
+                }));
+              }}
             >
               <option value="">Select Role</option>
               <option value="ADMIN">Admin</option>
               <option value="EMPLOYEE">Employee</option>
+              {isTutor && <option value="STUDENT">Student</option>}
             </Form.Select>
           </Form.Group>
 
-          <Form.Group className="mb-2">
-            <Form.Label>Receiver ID</Form.Label>
-            <Form.Control
-              value={form.receiverId}
-              onChange={(e) =>
-                setForm({ ...form, receiverId: e.target.value })
-              }
-            />
-          </Form.Group>
+          {/* EMPLOYEE INPUT */}
+          {form.receiverRole === "EMPLOYEE" && (
+            <Form.Group className="mb-2">
+              <Form.Label>Employee ID</Form.Label>
+              <Form.Control
+                placeholder="Employee ID (e.g., E101)"
+                value={form.receiverId}
+                onChange={(e) =>
+                  setForm({ ...form, receiverId: e.target.value })
+                }
+              />
+            </Form.Group>
+          )}
+
+          {/* STUDENT DROPDOWN (TUTOR ONLY) */}
+          {form.receiverRole === "STUDENT" && isTutor && (
+            <Form.Group className="mb-2">
+              <Form.Label>Select Student</Form.Label>
+              <Form.Select
+                value={form.receiverId}
+                onChange={(e) =>
+                  setForm({ ...form, receiverId: e.target.value })
+                }
+              >
+                <option value="">Choose Student</option>
+                {tutorStudents.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.id} — {s.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          )}
 
           <Form.Group className="mb-2">
             <Form.Label>Subject</Form.Label>
@@ -391,7 +535,7 @@ function EmployeeMessages() {
             />
           </Form.Group>
 
-          <div className="send-form-btn-mobile">
+          <div style={{ display: "flex", justifyContent: "center" }}>
             <Button type="submit" style={styles.sendSubmitBtn}>
               Send
             </Button>
@@ -418,14 +562,12 @@ const styles = {
   },
 
   title: {
-    fontFamily: "Salsa",
     fontSize: "34px",
     fontWeight: "700",
     textAlign: "center",
     marginBottom: 20,
   },
 
-  /* DESKTOP BOX */
   desktopBox: {
     width: "100%",
     height: "80vh",
@@ -434,7 +576,6 @@ const styles = {
     overflow: "hidden",
   },
 
-  /* SIDEBAR */
   sidebar: {
     width: 260,
     background: "#F5F5F5",
@@ -456,7 +597,6 @@ const styles = {
     border: "2px solid #000",
   },
 
-  /* CONTENT AREA */
   desktopContent: {
     flex: 1,
     padding: 30,
@@ -470,7 +610,6 @@ const styles = {
     marginBottom: 20,
   },
 
-  /* DESKTOP TABLE */
   table: { marginTop: 10 },
   th: {
     background: "#136CED",
@@ -502,7 +641,6 @@ const styles = {
     fontWeight: 700,
   },
 
-  /* SEND FORM */
   sendForm: {
     border: "2px solid #000",
     padding: 20,
@@ -518,7 +656,6 @@ const styles = {
     borderRadius: 8,
   },
 
-  /* MOBILE */
   mobileTabs: {
     display: "flex",
     justifyContent: "center",
@@ -553,7 +690,6 @@ const styles = {
     fontWeight: 600,
   },
 
-  /* MOBILE TABLE */
   mobileCard: {
     border: "2px solid #000",
     borderRadius: 14,
@@ -579,7 +715,6 @@ const styles = {
     fontWeight: 500,
   },
 
-  /* MOBILE SEND FORM */
   mobileSendForm: {
     border: "2px solid #000",
     borderRadius: 14,
