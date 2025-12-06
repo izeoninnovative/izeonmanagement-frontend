@@ -421,9 +421,8 @@ function Attendance() {
           {/* SUB TABS */}
           <div className="sub-tabs">
             <button
-              className={`sub-btn ${
-                activeSubTab === "attendance" ? "active" : ""
-              }`}
+              className={`sub-btn ${activeSubTab === "attendance" ? "active" : ""
+                }`}
               onClick={() => {
                 setActiveSubTab("attendance");
                 localStorage.setItem("att_sub_tab", "attendance");
@@ -626,8 +625,8 @@ function Attendance() {
                                 req.status === "APPROVED"
                                   ? "complete"
                                   : req.status === "REJECTED"
-                                  ? "absent"
-                                  : "progress"
+                                    ? "absent"
+                                    : "progress"
                               )}`}
                             >
                               {req.status}
@@ -689,11 +688,7 @@ function Attendance() {
             <tbody>
               {attendance.students.length ? (
                 attendance.students.map((s) => {
-                  const done =
-                    s.status === "COMPLETE" ||
-                    s.present ||
-                    !!s.eveningCheckOut;
-
+           
                   return (
                     <tr key={s.id}>
                       <td>{s.date}</td>
@@ -701,14 +696,11 @@ function Attendance() {
                       <td>{s.batchName || "—"}</td>
                       <td>{s.tutorName || "—"}</td>
                       <td>
-                        <span
-                          className={`status-pill ${pill(
-                            done ? "complete" : "progress"
-                          )}`}
-                        >
-                          {done ? "Complete" : "In Progress"}
+                        <span className={`status-pill ${pill("complete")}`}>
+                          present
                         </span>
                       </td>
+
                     </tr>
                   );
                 })
